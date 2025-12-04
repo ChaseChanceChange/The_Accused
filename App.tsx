@@ -113,13 +113,16 @@ const App: React.FC = () => {
         let isMember = false;
         if (guildsRes.ok) {
             const guilds = await guildsRes.json();
-            console.log("User Guilds:", guilds.map((g: any) => ({ id: g.id, name: g.name })));
+            console.log("User Guilds found:", guilds.length);
             
             // Logic: Is user in "The Accused" server (REQUIRED_GUILD_ID)?
+            // We check for membership OR ownership (g.owner) of the target guild
             isMember = guilds.some((g: any) => g.id === REQUIRED_GUILD_ID);
             
             if (!isMember) {
-                console.warn(`User is NOT a member of target guild ${REQUIRED_GUILD_ID}. Logging in as Guest.`);
+                console.log(`User is NOT a member of target guild ${REQUIRED_GUILD_ID}.`);
+                // Debug log to help owner find their guild ID if there is a mismatch
+                console.log("User's Guilds:", guilds.map((g: any) => `${g.name} (${g.id})`));
             } else {
                 console.log("Membership verified for The Accused!");
             }
@@ -153,7 +156,7 @@ const App: React.FC = () => {
         showNotification("Login Failed. Please try again.", 'error');
     } finally {
         setIsVerifying(false);
-        // Clear the hash from the URL to prevent re-triggering and clean up UI
+        // Clear the hash from the URL to prevent re-triggering, preserving current path (e.g. /The_Accused/)
         window.history.replaceState(null, '', window.location.pathname);
     }
   };
