@@ -5,13 +5,15 @@
 */
 
 import React, { useState, useEffect } from 'react';
-import { Enchantment } from './types';
+import { Enchantment, User } from './types';
 import { EnchantmentCard } from './EnchantmentCard';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Sparkles, Image as ImageIcon, Trash2, Cpu, Settings, Key } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Trash2, Cpu, Settings, Key, Lock, Shield } from 'lucide-react';
 
 interface CreateViewProps {
     onSave: (e: Enchantment) => void;
+    user: User | null;
+    onLoginRequest: () => void;
 }
 
 const INITIAL_STATE: Enchantment = {
@@ -30,18 +32,39 @@ const INITIAL_STATE: Enchantment = {
     createdAt: Date.now()
 };
 
-// Fallback images for when AI generation isn't available
 const FALLBACK_IMAGES = [
-    'https://images.unsplash.com/photo-1633355209376-8575087f941f?q=80&w=400&auto=format&fit=crop', // Dark shield/armor
-    'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&auto=format&fit=crop', // Mystical forest
-    'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?q=80&w=400&auto=format&fit=crop', // Void/Darkness
-    'https://images.unsplash.com/photo-1628151015968-3a4429e9ef04?q=80&w=400&auto=format&fit=crop', // Fire/Magma
-    'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop', // Gold/Treasure
-    'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400&auto=format&fit=crop', // Ice/Crystal
-    'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=400&auto=format&fit=crop', // Lightning
+    'https://images.unsplash.com/photo-1633355209376-8575087f941f?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1628151015968-3a4429e9ef04?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=400&auto=format&fit=crop',
 ];
 
-export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
+export const CreateView: React.FC<CreateViewProps> = ({ onSave, user, onLoginRequest }) => {
+    // If not user, show locked state
+    if (!user) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="w-24 h-24 bg-red-900/20 rounded-full flex items-center justify-center mb-6 border-2 border-red-500/50 shadow-[0_0_30px_rgba(220,38,38,0.2)]">
+                    <Lock size={48} className="text-red-500" />
+                </div>
+                <h2 className="font-header text-4xl text-white mb-2 tracking-widest uppercase">Access Denied</h2>
+                <p className="font-mono text-gray-400 max-w-md mb-8">
+                    The Forge is restricted to verified members of the Mystic Enchanters order. 
+                    You must verify your identity and server membership to craft legendary items.
+                </p>
+                <button 
+                    onClick={onLoginRequest}
+                    className="flex items-center gap-2 px-8 py-4 bg-[#5865F2] hover:bg-[#4752c4] text-white rounded-lg transition-all font-bold uppercase tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(88,101,242,0.5)] transform hover:-translate-y-1"
+                >
+                    <Shield size={20} /> Verify with Discord
+                </button>
+            </div>
+        );
+    }
+
     const [draft, setDraft] = useState<Enchantment>({
         ...INITIAL_STATE, 
         name: 'soul reavers edge',
@@ -53,8 +76,11 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
             'increases movement speed by 10% for 10 seconds',
             'slams ground to create a shockwave blasting enemies in a 10 yard radius'
         ],
-        iconUrl: 'https://images.unsplash.com/photo-1628151015968-3a4429e9ef04?q=80&w=400&auto=format&fit=crop'
+        iconUrl: 'https://images.unsplash.com/photo-1628151015968-3a4429e9ef04?q=80&w=400&auto=format&fit=crop',
+        author: user.username
     });
+    
+    // ... existing logic ...
     const [isGenerating, setIsGenerating] = useState(false);
     const [isImgGenerating, setIsImgGenerating] = useState(false);
     
@@ -144,7 +170,6 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
             }));
         } catch (e) {
             console.warn("AI Generation unavailable or failed. Using Mock Data.", e);
-            // Mock Fallback
             setTimeout(() => {
                 setDraft(prev => ({
                     ...prev,
@@ -190,7 +215,6 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
             }
         } catch (e) {
              console.warn("AI Image Generation unavailable or failed. Using Fallback.", e);
-             // Random fallback image
              const randomImg = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
              setTimeout(() => {
                  setDraft(prev => ({ ...prev, iconUrl: randomImg }));
@@ -265,11 +289,14 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
                                     onClick={generateDetails}
                                     disabled={isGenerating || !draft.name}
                                     className="absolute right-1 top-1 bottom-1 px-3 bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white rounded flex items-center justify-center disabled:opacity-50 transition-all border border-purple-600/30"
-                                    title="Auto-fill with AI"
+                                    title={apiKey ? "Generate with Gemini" : "Simulate Generation (No Key)"}
                                 >
                                     <Cpu size={18} className={isGenerating ? "animate-spin" : ""} />
                                 </button>
                             </div>
+                            {!apiKey && (
+                                <p className="text-[10px] text-gray-500 text-right">Running in Simulation Mode (No API Key)</p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -415,10 +442,6 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
                          <div className="inline-block px-4 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[10px] uppercase tracking-widest font-mono animate-pulse">
                             System Ready
                          </div>
-                     </div>
-                     {/* Mobile tip */}
-                     <div className="block lg:hidden text-center text-xs text-gray-500 font-mono">
-                        Preview updates automatically
                      </div>
                  </div>
             </div>
