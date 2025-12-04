@@ -5,13 +5,14 @@
 */
 
 import React, { useState, useEffect } from 'react';
-import { Enchantment, User, REQUIRED_GUILD_ID, DONATION_LINK } from './types';
+import { Enchantment, User, REQUIRED_GUILD_ID, DONATION_LINK, DISCORD_CLIENT_ID } from './types';
 import { CreateView } from './CreateView';
 import { GalleryView } from './GalleryView';
 import { CommunityView } from './CommunityView';
 import { DiscordLogin } from './DiscordLogin';
 import { calculatePowerLevel } from './utils';
-import { Plus, LayoutGrid, Heart, User as UserIcon, Sparkles, Info, LogOut, Loader2, AlertTriangle, Scroll, Coffee } from 'lucide-react';
+import { Plus, LayoutGrid, Heart, User as UserIcon, Sparkles, Info, LogOut, Loader2, AlertTriangle, Scroll, Coffee, Gamepad2 } from 'lucide-react';
+import { DiscordSDK } from "@discord/embedded-app-sdk";
 
 // Mock Data matching the screenshots
 const MOCK_DATA: Enchantment[] = [
@@ -87,11 +88,14 @@ const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true); // Prevents flash of login screen
+  const [isInDiscordActivity, setIsInDiscordActivity] = useState(false);
 
-  // --- Real Discord OAuth Logic ---
+  // --- Real Discord OAuth Logic (Web) ---
   const verifyDiscordToken = async (accessToken: string) => {
     setIsVerifying(true);
     try {
+        console.log("Verifying token...", accessToken.substring(0, 5) + "...");
+        
         // 1. Fetch User Profile
         const userRes = await fetch('https://discord.com/api/users/@me', {
             headers: { Authorization: `Bearer ${accessToken}` }
@@ -107,11 +111,17 @@ const App: React.FC = () => {
         let isMember = false;
         if (guildsRes.ok) {
             const guilds = await guildsRes.json();
-            // Check if user is in guild OR is the owner (owners sometimes don't show in list depending on scope, but usually do)
-            // Just strictly check ID presence
+            console.log("User Guilds:", guilds.map((g: any) => ({ id: g.id, name: g.name, owner: g.owner })));
+            
+            // Strictly check for "The Accused" server membership
             isMember = guilds.some((g: any) => g.id === REQUIRED_GUILD_ID);
+            
+            // Fallback for owners/admins who might have scope issues
+            if (!isMember && guilds.some((g: any) => g.id === REQUIRED_GUILD_ID && g.owner)) {
+                isMember = true;
+            }
         } else {
-            console.warn("Could not fetch guilds to verify membership. Defaulting to false.");
+            console.warn("Could not fetch guilds to verify membership.");
         }
 
         const appUser: User = {
@@ -130,7 +140,7 @@ const App: React.FC = () => {
         if (isMember) {
              showNotification(`Verified as ${appUser.username}! Welcome to the Forge.`);
         } else {
-             showNotification(`Logged in as Guest. Join the server to unlock full features.`, 'info');
+             showNotification(`Logged in as Guest.`, 'info');
         }
 
     } catch (error) {
@@ -144,51 +154,79 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // 1. Init Data
-    const saved = localStorage.getItem('mystic_enchantments');
-    let data: Enchantment[] = [];
-    if (saved) {
-      data = JSON.parse(saved);
-    } else {
-      data = MOCK_DATA;
-    }
-
-    // Backfill calculations if missing
-    const updatedWithScores = data.map(item => {
-        if (!item.itemScore) {
-            return { ...item, itemScore: calculatePowerLevel(item) };
+    const initializeApp = async () => {
+        // 1. Init Data
+        const saved = localStorage.getItem('mystic_enchantments');
+        let data: Enchantment[] = [];
+        if (saved) {
+          data = JSON.parse(saved);
+        } else {
+          data = MOCK_DATA;
         }
-        return item;
-    });
 
-    if (JSON.stringify(updatedWithScores) !== JSON.stringify(data) || !saved) {
-        setEnchantments(updatedWithScores);
-        localStorage.setItem('mystic_enchantments', JSON.stringify(updatedWithScores));
-    } else {
-        setEnchantments(data);
-    }
-    
-    // 2. Init User (Persistence Check)
-    const savedUser = localStorage.getItem('mystic_user');
-    if (savedUser) {
-        setUser(JSON.parse(savedUser));
-    }
-
-    // 3. Check for Discord OAuth Callback (Access Token in Hash)
-    const fragment = new URLSearchParams(window.location.hash.slice(1));
-    const accessToken = fragment.get('access_token');
-    
-    if (accessToken) {
-        // If we found a token, we are verifying, so wait for that
-        verifyDiscordToken(accessToken).then(() => {
-            setIsInitializing(false);
+        const updatedWithScores = data.map(item => {
+            if (!item.itemScore) {
+                return { ...item, itemScore: calculatePowerLevel(item) };
+            }
+            return item;
         });
-    } else {
-        // Otherwise, we are done initializing
-        // Small timeout to prevent flicker if user is retrieved from localstorage instantly
-        setIsInitializing(false);
-    }
 
+        if (JSON.stringify(updatedWithScores) !== JSON.stringify(data) || !saved) {
+            setEnchantments(updatedWithScores);
+            localStorage.setItem('mystic_enchantments', JSON.stringify(updatedWithScores));
+        } else {
+            setEnchantments(data);
+        }
+
+        // 2. DISCORD ACTIVITY CHECK
+        // If we are running inside Discord, 'DiscordSDK' will successfully handshake
+        try {
+            const discordSdk = new DiscordSDK(DISCORD_CLIENT_ID);
+            // This timeout prevents hanging if we are NOT in Discord (on web)
+            const timeout = new Promise((_, reject) => setTimeout(() => reject("Not in Discord"), 1000));
+            
+            await Promise.race([discordSdk.ready(), timeout]);
+            
+            console.log("Discord Activity SDK Ready!");
+            setIsInDiscordActivity(true);
+
+            // Since we are in an Activity on static hosting, we cannot securely exchange tokens 
+            // without a backend. We will create a "Guest Session" for the user.
+            const activityUser: User = {
+                id: 'activity-guest',
+                username: 'Discord Adventurer',
+                discriminator: '0000',
+                avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
+                isMember: false // Guests in activity mode are restricted from deletion
+            };
+            setUser(activityUser);
+            setIsInitializing(false);
+            return; // Skip normal web auth check
+
+        } catch (e) {
+            console.log("Running in Web Mode (Not Embedded)");
+        }
+        
+        // 3. Init User (Web Persistence Check)
+        const savedUser = localStorage.getItem('mystic_user');
+        if (savedUser) {
+            setUser(JSON.parse(savedUser));
+        }
+
+        // 4. Check for Discord OAuth Callback (Web)
+        const fragment = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = fragment.get('access_token');
+        
+        if (accessToken) {
+            verifyDiscordToken(accessToken).then(() => {
+                setIsInitializing(false);
+            });
+        } else {
+            setIsInitializing(false);
+        }
+    };
+
+    initializeApp();
   }, []);
 
   const showNotification = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -205,12 +243,7 @@ const App: React.FC = () => {
 
   const checkPermission = (action: 'create' | 'interact', callback: () => void) => {
       if (!user) return; 
-
-      if (user.isMember) {
-          callback();
-      } else {
-           showNotification("Restricted: You must join the Discord Server to do this.", 'error');
-      }
+      callback();
   };
 
   const handleSave = (newEnchantment: Enchantment) => {
@@ -260,12 +293,14 @@ const App: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-      checkPermission('create', () => {
-        const updated = enchantments.filter(e => e.id !== id);
-        setEnchantments(updated);
-        localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-        showNotification("Enchantment Deleted", 'info');
-      });
+      if (!user?.isMember) {
+          showNotification("Only Verified Members can destroy ancient artifacts.", "error");
+          return;
+      }
+      const updated = enchantments.filter(e => e.id !== id);
+      setEnchantments(updated);
+      localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
+      showNotification("Enchantment Deleted", 'info');
   };
 
   const handleDownloadStatUpdate = (id: string) => {
@@ -278,8 +313,6 @@ const App: React.FC = () => {
         showNotification("Downloading Lore Card...");
       });
   };
-
-  const favoritedCount = enchantments.filter(e => e.isLiked).length;
 
   // 1. Global Loading State (Initializing or Verifying)
   if (isInitializing || isVerifying) {
@@ -297,8 +330,8 @@ const App: React.FC = () => {
       );
   }
 
-  // 2. Not Logged In - Strict Gate
-  if (!user) {
+  // 2. Not Logged In - Strict Gate (Skip if in Discord Activity)
+  if (!user && !isInDiscordActivity) {
       return (
           <div className="min-h-screen bg-[#050505] relative flex flex-col">
               {/* Animated Background */}
@@ -388,15 +421,18 @@ const App: React.FC = () => {
                 {/* Profile */}
                 <div className="flex items-center gap-3">
                     <div className="text-right hidden sm:block">
-                        <div className="text-xs font-bold text-white max-w-[100px] truncate">{user.username}</div>
-                        {user.isMember ? (
+                        <div className="text-xs font-bold text-white max-w-[100px] truncate">{user?.username || 'Guest'}</div>
+                        {user?.isMember ? (
                             <div className="text-[10px] text-green-400 uppercase tracking-wide">Verified</div>
                         ) : (
-                            <div className="text-[10px] text-red-400 uppercase tracking-wide flex items-center justify-end gap-1"><AlertTriangle size={8} /> Guest</div>
+                            <div className="text-[10px] text-blue-400 uppercase tracking-wide flex items-center justify-end gap-1">
+                                {isInDiscordActivity ? <Gamepad2 size={8} /> : <AlertTriangle size={8} />} 
+                                {isInDiscordActivity ? 'Activity' : 'Guest'}
+                            </div>
                         )}
                     </div>
                     <div className="relative group">
-                            <img src={user.avatar} alt="User" className={`w-10 h-10 rounded-full border-2 cursor-pointer ${user.isMember ? 'border-green-500' : 'border-red-500'}`} />
+                            <img src={user?.avatar} alt="User" className={`w-10 h-10 rounded-full border-2 cursor-pointer ${user?.isMember ? 'border-green-500' : 'border-blue-500'}`} />
                             <div className="absolute top-full right-0 mt-2 w-48 py-2 bg-black border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                                 <a href={DONATION_LINK} target="_blank" rel="noreferrer" className="w-full text-left px-4 py-3 text-xs text-yellow-500 hover:bg-white/5 flex items-center gap-2 lg:hidden border-b border-white/5">
                                     <Coffee size={12} /> Donate / Support

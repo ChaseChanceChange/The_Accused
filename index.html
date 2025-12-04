@@ -9,26 +9,119 @@
     <!-- Orbitron for headers, Share Tech Mono for data/stats, Rajdhani for UI text -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-  <script type="importmap">
+  <!-- 
+     DYNAMIC LOADER SCRIPT 
+     This replaces a build step by compiling TSX in the browser.
+     Compatible with GitHub Pages.
+  -->
+  <script type="module">
+    import { transform } from 'https://esm.sh/@babel/standalone@7.23.6';
+
+    // 1. Files to load
+    const localFiles = [
+      { name: 'App', path: './App.tsx' },
+      { name: 'CreateView', path: './CreateView.tsx' },
+      { name: 'GalleryView', path: './GalleryView.tsx' },
+      { name: 'DiscordLogin', path: './DiscordLogin.tsx' },
+      { name: 'CommunityView', path: './CommunityView.tsx' },
+      { name: 'EnchantmentCard', path: './EnchantmentCard.tsx' },
+      { name: 'utils', path: './utils.ts' },
+      { name: 'types', path: './types.ts' },
+      { name: 'index', path: './index.tsx' }
+    ];
+
+    // 2. Import Map configuration
+    const importMap = {
+      imports: {
+        "react": "https://esm.sh/react@18.2.0?dev",
+        "react/": "https://esm.sh/react@18.2.0/",
+        "react-dom": "https://esm.sh/react-dom@18.2.0?dev",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
+        "@google/genai": "https://esm.sh/@google/genai@0.1.1",
+        "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
+        "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react",
+        "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+        "@discord/embedded-app-sdk": "https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.5.0/+esm"
+      }
+    };
+
+    // Apply Import Map
+    const mapEl = document.createElement('script');
+    mapEl.type = 'importmap';
+    mapEl.textContent = JSON.stringify(importMap);
+    document.head.appendChild(mapEl);
+
+    // 3. Loader Logic
+    async function loadApp() {
+      try {
+        // Fetch and Transpile
+        for (const file of localFiles) {
+          try {
+             // Robust relative path handling
+             const path = file.path.startsWith('.') ? file.path : `./${file.path}`;
+             const url = new URL(path, document.baseURI).href;
+             
+             console.log(`Fetching: ${url}`);
+             const res = await fetch(url);
+             if (!res.ok) throw new Error(`Status ${res.status}`);
+             
+             const tsCode = await res.text();
+
+             // Rewrite imports:  import ... from './App'  ->  import ... from 'App'
+             const jsCode = transform(tsCode, {
+               presets: ['react', 'typescript'],
+               filename: file.name + '.tsx'
+             }).code.replace(/from ['"]\.\/([^'"]+)['"]/g, "from '$1'");
+             
+             // Create Blob URL
+             const blob = new Blob([jsCode], { type: 'text/javascript' });
+             const blobUrl = URL.createObjectURL(blob);
+             
+             // Update map for this file
+             importMap.imports[file.name] = blobUrl;
+          } catch (fileErr) {
+             console.error(`Error loading ${file.name} (${file.path}):`, fileErr);
+             throw new Error(`Failed to load ${file.name}. Check console for details.`);
+          }
+        }
+
+        // Re-apply map with blob URLs
+        mapEl.textContent = JSON.stringify(importMap);
+
+        // Launch
+        await import('index');
+
+      } catch (err) {
+        document.body.innerHTML = `
+          <div style="color: red; padding: 20px; font-family: monospace;">
+            <h1>Loader Fatal Error</h1>
+            <pre>${err.message}</pre>
+            <p>If you are on GitHub Pages, ensure all filenames in <code>localFiles</code> match exactly (case-sensitive).</p>
+          </div>
+        `;
+        console.error("Loader failed:", err);
+      }
+    }
+
+    loadApp();
+  </script>
+<link rel="stylesheet" href="./index.css">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@18.2.0",
-    "react/": "https://aistudiocdn.com/react@18.2.0/",
-    "react-dom": "https://aistudiocdn.com/react-dom@18.2.0",
-    "react-dom/client": "https://aistudiocdn.com/react-dom@18.2.0/client",
-    "react-dom/": "https://aistudiocdn.com/react-dom@18.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
-    "recharts": "https://aistudiocdn.com/recharts@2.12.0?external=react,react-dom",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@0.263.1",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "@discord/embedded-app-sdk": "https://aistudiocdn.com/@discord/embedded-app-sdk@^2.4.0",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-[#050505] text-white overflow-x-hidden">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
