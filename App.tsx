@@ -11,79 +11,16 @@ import { GalleryView } from './GalleryView';
 import { CommunityView } from './CommunityView';
 import { DiscordLogin } from './DiscordLogin';
 import { calculatePowerLevel } from './utils';
-import { Plus, LayoutGrid, Heart, User as UserIcon, Sparkles, Info, LogOut, Loader2, AlertTriangle, Scroll, Coffee, Gamepad2 } from 'lucide-react';
+import { api } from './api';
+import { Plus, LayoutGrid, Heart, User as UserIcon, Sparkles, Info, LogOut, Loader2, AlertTriangle, Scroll, Coffee, Gamepad2, Wifi, WifiOff } from 'lucide-react';
 import { DiscordSDK } from "@discord/embedded-app-sdk";
-
-// Mock Data matching the screenshots
-const MOCK_DATA: Enchantment[] = [
-    {
-        id: '1',
-        name: 'The Beast Within',
-        slot: 'Weapon',
-        rarity: 'Legendary',
-        type: 'On Use',
-        cost: '100 Energy',
-        trigger: 'Active ability',
-        flavorText: '+Chance to summon the beast within last 10 seconds. 15% proc chance to unleash devastating attacks.',
-        effects: [
-            '+50% chance to unleash the beast within special attacks', 
-            'Grant 200 Strength', 
-            'Your attacks cleave for 50% damage'
-        ],
-        iconUrl: 'https://images.unsplash.com/photo-1633355209376-8575087f941f?q=80&w=400&auto=format&fit=crop',
-        author: 'Anonymous',
-        stats: { likes: 365, views: 1200, downloads: 45 },
-        createdAt: 1715400000000,
-        isLiked: true,
-        itemScore: 450
-    },
-    {
-        id: '2',
-        name: 'Windfury Legacy',
-        slot: 'Weapon',
-        rarity: 'Legendary',
-        type: 'Proc Chance',
-        cost: 'Passive',
-        trigger: 'On Melee Hit',
-        flavorText: 'The wind guides your strikes with furious anger.',
-        effects: [
-            '15% chance to grant 2 extra attacks', 
-            'Increases movement speed by 5%', 
-            'Your next stormstrike deals 20% more damage'
-        ],
-        iconUrl: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&auto=format&fit=crop',
-        author: 'seed',
-        stats: { likes: 19, views: 240, downloads: 2 },
-        createdAt: 1715300000000,
-        itemScore: 380
-    },
-    {
-        id: '3',
-        name: 'Void Infusion',
-        slot: 'Chest',
-        rarity: 'Epic',
-        type: 'Passive Effect',
-        cost: '500 Mana',
-        trigger: 'Always Active',
-        flavorText: 'The void stares back, and it grants you power.',
-        effects: [
-            'Increases maximum Mana by 800', 
-            'Your shadow spells deal 10% increased damage', 
-            'Reduces physical damage taken by 5%'
-        ],
-        iconUrl: 'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?q=80&w=400&auto=format&fit=crop',
-        author: 'seed',
-        stats: { likes: 454, views: 3000, downloads: 890 },
-        createdAt: 1715200000000,
-        itemScore: 320
-    }
-];
 
 const App: React.FC = () => {
   const [view, setView] = useState<'browse' | 'create' | 'community'>('browse');
   const [enchantments, setEnchantments] = useState<Enchantment[]>([]);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'info' | 'error'} | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [serverStatus, setServerStatus] = useState(false);
   
   // Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -96,14 +33,26 @@ const App: React.FC = () => {
     try {
         console.log("Verifying token...", accessToken.substring(0, 5) + "...");
         
-        // 1. Fetch User Profile
+        // 1. Try Server Verification First (Secure Docker Backend)
+        const serverUser = await api.verifyDiscord(accessToken);
+        
+        if (serverUser) {
+            setUser(serverUser);
+            localStorage.setItem('mystic_user', JSON.stringify(serverUser));
+            showNotification(`Verified via Server as ${serverUser.username}!`);
+            setIsVerifying(false);
+            window.history.replaceState(null, '', window.location.pathname);
+            return;
+        }
+
+        // 2. Fallback to Client-Side (GitHub Pages Mode)
+        console.log("Server verification skipped/failed, using Client-Side validation...");
         const userRes = await fetch('https://discord.com/api/users/@me', {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (!userRes.ok) throw new Error("Failed to fetch user profile");
         const userData = await userRes.json();
 
-        // 2. Fetch Guilds to verify membership
         const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
@@ -112,16 +61,8 @@ const App: React.FC = () => {
         if (guildsRes.ok) {
             const guilds = await guildsRes.json();
             console.log("User Guilds:", guilds.map((g: any) => ({ id: g.id, name: g.name, owner: g.owner })));
-            
-            // Strictly check for "The Accused" server membership
-            isMember = guilds.some((g: any) => g.id === REQUIRED_GUILD_ID);
-            
-            // Fallback for owners/admins who might have scope issues
-            if (!isMember && guilds.some((g: any) => g.id === REQUIRED_GUILD_ID && g.owner)) {
-                isMember = true;
-            }
-        } else {
-            console.warn("Could not fetch guilds to verify membership.");
+            isMember = guilds.some((g: any) => g.id === REQUIRED_GUILD_ID) || 
+                       guilds.some((g: any) => g.id === REQUIRED_GUILD_ID && g.owner);
         }
 
         const appUser: User = {
@@ -148,60 +89,39 @@ const App: React.FC = () => {
         showNotification("Verification Failed. Please try again.", 'error');
     } finally {
         setIsVerifying(false);
-        // Clear the hash from the URL so we don't re-trigger
         window.history.replaceState(null, '', window.location.pathname);
     }
   };
 
   useEffect(() => {
     const initializeApp = async () => {
-        // 1. Init Data
-        const saved = localStorage.getItem('mystic_enchantments');
-        let data: Enchantment[] = [];
-        if (saved) {
-          data = JSON.parse(saved);
-        } else {
-          data = MOCK_DATA;
-        }
+        // Check Server Health
+        const online = await api.checkStatus();
+        setServerStatus(online);
 
-        const updatedWithScores = data.map(item => {
-            if (!item.itemScore) {
-                return { ...item, itemScore: calculatePowerLevel(item) };
-            }
-            return item;
-        });
-
-        if (JSON.stringify(updatedWithScores) !== JSON.stringify(data) || !saved) {
-            setEnchantments(updatedWithScores);
-            localStorage.setItem('mystic_enchantments', JSON.stringify(updatedWithScores));
-        } else {
-            setEnchantments(data);
-        }
+        // 1. Init Data (via API bridge)
+        const data = await api.getEnchantments();
+        setEnchantments(data);
 
         // 2. DISCORD ACTIVITY CHECK
-        // If we are running inside Discord, 'DiscordSDK' will successfully handshake
         try {
             const discordSdk = new DiscordSDK(DISCORD_CLIENT_ID);
-            // This timeout prevents hanging if we are NOT in Discord (on web)
             const timeout = new Promise((_, reject) => setTimeout(() => reject("Not in Discord"), 1000));
-            
             await Promise.race([discordSdk.ready(), timeout]);
             
             console.log("Discord Activity SDK Ready!");
             setIsInDiscordActivity(true);
 
-            // Since we are in an Activity on static hosting, we cannot securely exchange tokens 
-            // without a backend. We will create a "Guest Session" for the user.
             const activityUser: User = {
                 id: 'activity-guest',
                 username: 'Discord Adventurer',
                 discriminator: '0000',
                 avatar: 'https://cdn.discordapp.com/embed/avatars/0.png',
-                isMember: false // Guests in activity mode are restricted from deletion
+                isMember: false
             };
             setUser(activityUser);
             setIsInitializing(false);
-            return; // Skip normal web auth check
+            return;
 
         } catch (e) {
             console.log("Running in Web Mode (Not Embedded)");
@@ -246,8 +166,8 @@ const App: React.FC = () => {
       callback();
   };
 
-  const handleSave = (newEnchantment: Enchantment) => {
-    checkPermission('create', () => {
+  const handleSave = async (newEnchantment: Enchantment) => {
+    checkPermission('create', async () => {
         const score = calculatePowerLevel(newEnchantment);
         const enchantmentWithScore = { 
             ...newEnchantment, 
@@ -255,61 +175,44 @@ const App: React.FC = () => {
             author: user?.username || 'Unknown' 
         };
         
-        const updated = [enchantmentWithScore, ...enchantments];
+        await api.saveEnchantment(enchantmentWithScore);
+        const updated = await api.getEnchantments();
         setEnchantments(updated);
-        localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
+        
         setView('browse');
         showNotification(`Enchantment Forged! Item Score: ${score}`);
     });
   };
 
-  const handleLike = (id: string) => {
-    checkPermission('interact', () => {
-        const updated = enchantments.map(e => {
-            if (e.id === id) {
-                const isLiked = !e.isLiked;
-                return {
-                    ...e,
-                    isLiked,
-                    stats: {
-                        ...e.stats,
-                        likes: isLiked ? e.stats.likes + 1 : e.stats.likes - 1
-                    }
-                };
-            }
-            return e;
-        });
+  const handleLike = async (id: string) => {
+    checkPermission('interact', async () => {
+        await api.toggleLike(id);
+        const updated = await api.getEnchantments();
         setEnchantments(updated);
-        localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
     });
   };
 
-  const handleView = (id: string) => {
-    const updated = enchantments.map(e => 
-        e.id === id ? { ...e, stats: { ...e.stats, views: e.stats.views + 1 } } : e
-    );
-    setEnchantments(updated);
-    localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
+  const handleView = async (id: string) => {
+    await api.incrementStat(id, 'views');
+    // Don't re-fetch whole list for a view to avoid jitter, just local update is fine via api.ts
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
       if (!user?.isMember) {
           showNotification("Only Verified Members can destroy ancient artifacts.", "error");
           return;
       }
-      const updated = enchantments.filter(e => e.id !== id);
+      await api.deleteEnchantment(id);
+      const updated = await api.getEnchantments();
       setEnchantments(updated);
-      localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
       showNotification("Enchantment Deleted", 'info');
   };
 
-  const handleDownloadStatUpdate = (id: string) => {
-      checkPermission('interact', () => {
-        const updated = enchantments.map(e => 
-            e.id === id ? { ...e, stats: { ...e.stats, downloads: e.stats.downloads + 1 } } : e
-        );
+  const handleDownloadStatUpdate = async (id: string) => {
+      checkPermission('interact', async () => {
+        await api.incrementStat(id, 'downloads');
+        const updated = await api.getEnchantments();
         setEnchantments(updated);
-        localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
         showNotification("Downloading Lore Card...");
       });
   };
@@ -408,6 +311,12 @@ const App: React.FC = () => {
             </nav>
 
             <div className="flex items-center gap-4">
+                {/* Server Status Indicator */}
+                <div className={`hidden md:flex items-center gap-1.5 px-2 py-1 rounded border text-[10px] font-mono uppercase tracking-wider ${serverStatus ? 'border-green-500/30 text-green-400 bg-green-500/5' : 'border-red-500/30 text-red-400 bg-red-500/5'}`}>
+                    {serverStatus ? <Wifi size={10} /> : <WifiOff size={10} />}
+                    {serverStatus ? 'Server Online' : 'Offline Mode'}
+                </div>
+
                 {/* Donate Button */}
                 <a 
                     href={DONATION_LINK} 

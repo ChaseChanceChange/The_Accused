@@ -1,0 +1,17 @@
+
+version: '3.8'
+
+services:
+  api:
+    build: ./server
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - DISCORD_CLIENT_ID=1444798601032372431
+      # IMPORTANT: Add your Bot Token below (never commit this file to public git)
+      - DISCORD_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
+      - GUILD_ID=1408571660994482298
+    volumes:
+      - ./server/data:/app/data
+    restart: always

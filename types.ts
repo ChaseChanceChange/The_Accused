@@ -13,6 +13,15 @@ export const REQUIRED_GUILD_ID = '1408571660994482298';
 export const TARGET_CHANNEL_ID = '1444728291792654497';
 export const DISCORD_INVITE_LINK = 'https://discord.gg/MGZUeqhB4V';
 
+// === BACKEND API CONFIGURATION ===
+// Your GitHub Page will try to talk to this address.
+// When running locally with Docker, this is http://localhost:4000
+// When you deploy your backend to a VPS, change this to https://api.yourdomain.com
+export const API_CONFIG = {
+    BASE_URL: 'http://localhost:4000/api',
+    TIMEOUT: 5000
+};
+
 // === DONATION ===
 export const DONATION_LINK = 'https://www.paypal.com/paypalme/MilliesTipBowl?locale.x=en_IE';
 
@@ -44,6 +53,11 @@ export interface Enchantment {
   };
   createdAt: number;
   isLiked?: boolean; // Local user state
+}
+
+export interface DiscordSDK {
+    ready: () => Promise<void>;
+    // Add other SDK methods if needed
 }
 
 export const RARITY_COLORS = {

@@ -15,7 +15,8 @@
     "@discord/embedded-app-sdk": "^2.4.0",
     "html2canvas": "^1.4.1",
     "@google/genai": "^1.31.0",
-    "recharts": "^3.5.1"
+    "recharts": "^3.5.1",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

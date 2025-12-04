@@ -5,41 +5,64 @@
 */
 
 import React, { useState } from 'react';
-import { DISCORD_CLIENT_ID, DISCORD_INVITE_LINK, REQUIRED_GUILD_ID } from './types';
-import { X, Shield, Bot, Server, LogIn, Copy, Check } from 'lucide-react';
+import { DISCORD_CLIENT_ID, DISCORD_INVITE_LINK } from './types';
+import { X, Shield, Bot, Server, LogIn, Copy, Check, AlertCircle } from 'lucide-react';
 
 interface DiscordLoginProps {
-    onLogin: (user: any) => void; // Used for simulation mode only, mostly unused in real flow
+    onLogin: (user: any) => void; 
     onClose: () => void;
-    isForced?: boolean; // New prop to prevent closing the modal
+    isForced?: boolean; 
 }
 
 export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = false }) => {
+    const [isLoading, setIsLoading] = useState(false);
     
-    // Robust Redirect URI generation
-    // We use href to ensure subpaths (like /repo/) are included, but strip existing hashes
-    // Discord requires this to match EXACTLY what is in the developer portal
-    const redirectUri = typeof window !== 'undefined' ? window.location.href.split('#')[0] : '';
-    
-    const loginUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=identify%20guilds`;
+    // 1. Generate a Clean Redirect URI
+    // Discord is strict. If your browser says ".../index.html", but Discord expects ".../", it fails.
+    const getRedirectUri = () => {
+        if (typeof window === 'undefined') return '';
+        const url = new URL(window.location.href);
+        // Remove 'index.html' if present
+        let cleanPath = url.pathname.replace(/\/index\.html$/, '/');
+        // Ensure no double slashes
+        cleanPath = cleanPath.replace(/\/\/+/g, '/');
+        return `${url.origin}${cleanPath}`;
+    };
+
+    const handleConnect = () => {
+        setIsLoading(true);
+        const redirectUri = getRedirectUri();
+        
+        console.log("Attempting Discord Login...");
+        console.log("Client ID:", DISCORD_CLIENT_ID);
+        console.log("Redirect URI:", redirectUri);
+
+        const params = new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID,
+            redirect_uri: redirectUri,
+            response_type: 'token',
+            scope: 'identify guilds'
+        });
+
+        // FORCE browser navigation
+        window.location.href = `https://discord.com/api/oauth2/authorize?${params.toString()}`;
+    };
     
     // Bot Invite URL
     const botInviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=8&scope=bot`;
 
-    // Server Invite (Fallback if they aren't in guild)
+    // Server Invite
     const serverInviteUrl = DISCORD_INVITE_LINK; 
 
     const [copied, setCopied] = useState(false);
-
     const copyRedirect = () => {
-        navigator.clipboard.writeText(redirectUri);
+        navigator.clipboard.writeText(getRedirectUri());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     return (
         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${isForced ? 'bg-[#050505]' : ''}`}>
-            {/* Only show backdrop click close if not forced */}
             {!isForced && (
                 <div className="absolute inset-0 bg-black/90 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose}></div>
             )}
@@ -53,7 +76,6 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
                             {isForced ? 'Authentication Required' : 'Server Verification'}
                         </span>
                     </div>
-                    {/* Only show close button if not forced */}
                     {!isForced && (
                         <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
                             <X size={20} />
@@ -94,12 +116,13 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
                     </div>
 
                     <div className="w-full space-y-3">
-                        <a 
-                            href={loginUrl}
-                            className="w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold py-3 rounded transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(88,101,242,0.4)] hover:shadow-[0_0_30px_rgba(88,101,242,0.6)]"
+                        <button 
+                            onClick={handleConnect}
+                            disabled={isLoading}
+                            className="w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold py-3 rounded transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(88,101,242,0.4)] hover:shadow-[0_0_30px_rgba(88,101,242,0.6)] disabled:opacity-50 disabled:cursor-wait"
                         >
-                            <LogIn size={18} /> Connect Discord
-                        </a>
+                            <LogIn size={18} /> {isLoading ? 'Redirecting...' : 'Connect Discord'}
+                        </button>
                         
                         <div className="flex gap-2">
                             <a 
@@ -121,11 +144,14 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
                         </div>
                     </div>
 
-                    {/* Troubleshooting / Debug Info */}
+                    {/* Debug Info for Config - Only visible if issues persist */}
                     <div className="mt-6 pt-4 border-t border-white/5 w-full text-center">
-                        <p className="text-[10px] text-gray-500 mb-2">Having trouble? Ensure this Redirect URI matches your Discord App settings exactly:</p>
+                        <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 mb-1">
+                             <AlertCircle size={10} /> 
+                             <span>Developer Config (Copy this to Discord Portal if redirect fails)</span>
+                        </div>
                         <div className="bg-black/40 p-2 rounded border border-white/10 flex items-center justify-between gap-2 group cursor-pointer hover:border-white/20 transition-colors" onClick={copyRedirect}>
-                            <code className="text-[10px] text-gray-400 font-mono truncate max-w-[250px]">{redirectUri}</code>
+                            <code className="text-[10px] text-gray-400 font-mono truncate max-w-[250px]">{getRedirectUri()}</code>
                             {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} className="text-gray-500 group-hover:text-white" />}
                         </div>
                     </div>
