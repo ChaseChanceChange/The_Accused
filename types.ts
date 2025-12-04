@@ -7,6 +7,15 @@
 export type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
 export type Slot = 'Weapon' | 'Chest' | 'Head' | 'Legs' | 'Hands' | 'Ring' | 'Trinket';
 
+// === DISCORD CONFIGURATION ===
+export const DISCORD_CLIENT_ID = '1444798601032372431';
+export const REQUIRED_GUILD_ID = '1408571660994482298'; 
+export const TARGET_CHANNEL_ID = '1444728291792654497';
+export const DISCORD_INVITE_LINK = 'https://discord.gg/MGZUeqhB4V';
+
+// === DONATION ===
+export const DONATION_LINK = 'https://www.paypal.com/paypalme/MilliesTipBowl?locale.x=en_IE';
+
 export interface User {
   id: string;
   username: string;

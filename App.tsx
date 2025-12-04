@@ -5,12 +5,13 @@
 */
 
 import React, { useState, useEffect } from 'react';
-import { Enchantment, User } from './types';
+import { Enchantment, User, REQUIRED_GUILD_ID, DONATION_LINK } from './types';
 import { CreateView } from './CreateView';
 import { GalleryView } from './GalleryView';
+import { CommunityView } from './CommunityView';
 import { DiscordLogin } from './DiscordLogin';
 import { calculatePowerLevel } from './utils';
-import { Plus, LayoutGrid, Heart, User as UserIcon, Sparkles, Info, LogOut } from 'lucide-react';
+import { Plus, LayoutGrid, Heart, User as UserIcon, Sparkles, Info, LogOut, Loader2, AlertTriangle, Scroll, Coffee } from 'lucide-react';
 
 // Mock Data matching the screenshots
 const MOCK_DATA: Enchantment[] = [
@@ -32,7 +33,8 @@ const MOCK_DATA: Enchantment[] = [
         author: 'Anonymous',
         stats: { likes: 365, views: 1200, downloads: 45 },
         createdAt: 1715400000000,
-        isLiked: true
+        isLiked: true,
+        itemScore: 450
     },
     {
         id: '2',
@@ -51,7 +53,8 @@ const MOCK_DATA: Enchantment[] = [
         iconUrl: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&auto=format&fit=crop',
         author: 'seed',
         stats: { likes: 19, views: 240, downloads: 2 },
-        createdAt: 1715300000000
+        createdAt: 1715300000000,
+        itemScore: 380
     },
     {
         id: '3',
@@ -70,33 +73,84 @@ const MOCK_DATA: Enchantment[] = [
         iconUrl: 'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?q=80&w=400&auto=format&fit=crop',
         author: 'seed',
         stats: { likes: 454, views: 3000, downloads: 890 },
-        createdAt: 1715200000000
+        createdAt: 1715200000000,
+        itemScore: 320
     }
 ];
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'browse' | 'create'>('browse');
+  const [view, setView] = useState<'browse' | 'create' | 'community'>('browse');
   const [enchantments, setEnchantments] = useState<Enchantment[]>([]);
-  const [notification, setNotification] = useState<{message: string, type: 'success' | 'info'} | null>(null);
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'info' | 'error'} | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   
   // Auth State
   const [user, setUser] = useState<User | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true); // Prevents flash of login screen
 
-  // Load data and user on mount
+  // --- Real Discord OAuth Logic ---
+  const verifyDiscordToken = async (accessToken: string) => {
+    setIsVerifying(true);
+    try {
+        // 1. Fetch User Profile
+        const userRes = await fetch('https://discord.com/api/users/@me', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (!userRes.ok) throw new Error("Failed to fetch user profile");
+        const userData = await userRes.json();
+
+        // 2. Fetch Guilds to verify membership
+        const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        
+        let isMember = false;
+        if (guildsRes.ok) {
+            const guilds = await guildsRes.json();
+            // Check if user is in guild OR is the owner (owners sometimes don't show in list depending on scope, but usually do)
+            // Just strictly check ID presence
+            isMember = guilds.some((g: any) => g.id === REQUIRED_GUILD_ID);
+        } else {
+            console.warn("Could not fetch guilds to verify membership. Defaulting to false.");
+        }
+
+        const appUser: User = {
+            id: userData.id,
+            username: userData.username,
+            discriminator: userData.discriminator,
+            avatar: userData.avatar 
+                ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${parseInt(userData.discriminator || '0') % 5}.png`,
+            isMember: isMember
+        };
+
+        setUser(appUser);
+        localStorage.setItem('mystic_user', JSON.stringify(appUser));
+        
+        if (isMember) {
+             showNotification(`Verified as ${appUser.username}! Welcome to the Forge.`);
+        } else {
+             showNotification(`Logged in as Guest. Join the server to unlock full features.`, 'info');
+        }
+
+    } catch (error) {
+        console.error("Discord verification failed:", error);
+        showNotification("Verification Failed. Please try again.", 'error');
+    } finally {
+        setIsVerifying(false);
+        // Clear the hash from the URL so we don't re-trigger
+        window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
   useEffect(() => {
+    // 1. Init Data
     const saved = localStorage.getItem('mystic_enchantments');
-    const savedUser = localStorage.getItem('mystic_user');
-    
     let data: Enchantment[] = [];
     if (saved) {
       data = JSON.parse(saved);
     } else {
       data = MOCK_DATA;
-    }
-    
-    if (savedUser) {
-        setUser(JSON.parse(savedUser));
     }
 
     // Backfill calculations if missing
@@ -113,18 +167,33 @@ const App: React.FC = () => {
     } else {
         setEnchantments(data);
     }
+    
+    // 2. Init User (Persistence Check)
+    const savedUser = localStorage.getItem('mystic_user');
+    if (savedUser) {
+        setUser(JSON.parse(savedUser));
+    }
+
+    // 3. Check for Discord OAuth Callback (Access Token in Hash)
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = fragment.get('access_token');
+    
+    if (accessToken) {
+        // If we found a token, we are verifying, so wait for that
+        verifyDiscordToken(accessToken).then(() => {
+            setIsInitializing(false);
+        });
+    } else {
+        // Otherwise, we are done initializing
+        // Small timeout to prevent flicker if user is retrieved from localstorage instantly
+        setIsInitializing(false);
+    }
+
   }, []);
 
-  const showNotification = (message: string, type: 'success' | 'info' = 'success') => {
+  const showNotification = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
       setNotification({ message, type });
-      setTimeout(() => setNotification(null), 3000);
-  };
-
-  const handleLogin = (userData: User) => {
-      setUser(userData);
-      localStorage.setItem('mystic_user', JSON.stringify(userData));
-      setShowLogin(false);
-      showNotification(`Welcome back, ${userData.username}!`);
+      setTimeout(() => setNotification(null), 4000);
   };
 
   const handleLogout = () => {
@@ -134,37 +203,35 @@ const App: React.FC = () => {
       showNotification('Logged out successfully.', 'info');
   };
 
-  const requireAuth = (callback: () => void) => {
-      if (user) {
+  const checkPermission = (action: 'create' | 'interact', callback: () => void) => {
+      if (!user) return; 
+
+      if (user.isMember) {
           callback();
       } else {
-          setShowLogin(true);
+           showNotification("Restricted: You must join the Discord Server to do this.", 'error');
       }
   };
 
   const handleSave = (newEnchantment: Enchantment) => {
-    // Double check auth
-    if (!user) {
-        setShowLogin(true);
-        return;
-    }
-    
-    const score = calculatePowerLevel(newEnchantment);
-    const enchantmentWithScore = { 
-        ...newEnchantment, 
-        itemScore: score,
-        author: user.username // Set verified author
-    };
-    
-    const updated = [enchantmentWithScore, ...enchantments];
-    setEnchantments(updated);
-    localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-    setView('browse');
-    showNotification(`Enchantment Forged! Item Score: ${score}`);
+    checkPermission('create', () => {
+        const score = calculatePowerLevel(newEnchantment);
+        const enchantmentWithScore = { 
+            ...newEnchantment, 
+            itemScore: score,
+            author: user?.username || 'Unknown' 
+        };
+        
+        const updated = [enchantmentWithScore, ...enchantments];
+        setEnchantments(updated);
+        localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
+        setView('browse');
+        showNotification(`Enchantment Forged! Item Score: ${score}`);
+    });
   };
 
   const handleLike = (id: string) => {
-    requireAuth(() => {
+    checkPermission('interact', () => {
         const updated = enchantments.map(e => {
             if (e.id === id) {
                 const isLiked = !e.isLiked;
@@ -193,15 +260,16 @@ const App: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-      // Direct delete, confirmation handled in GalleryView
-      const updated = enchantments.filter(e => e.id !== id);
-      setEnchantments(updated);
-      localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-      showNotification("Enchantment Deleted", 'info');
+      checkPermission('create', () => {
+        const updated = enchantments.filter(e => e.id !== id);
+        setEnchantments(updated);
+        localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
+        showNotification("Enchantment Deleted", 'info');
+      });
   };
 
   const handleDownloadStatUpdate = (id: string) => {
-      requireAuth(() => {
+      checkPermission('interact', () => {
         const updated = enchantments.map(e => 
             e.id === id ? { ...e, stats: { ...e.stats, downloads: e.stats.downloads + 1 } } : e
         );
@@ -213,6 +281,59 @@ const App: React.FC = () => {
 
   const favoritedCount = enchantments.filter(e => e.isLiked).length;
 
+  // 1. Global Loading State (Initializing or Verifying)
+  if (isInitializing || isVerifying) {
+      return (
+          <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-white relative overflow-hidden">
+               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.05]"></div>
+              <Loader2 size={64} className="text-purple-500 animate-spin mb-6" />
+              <h2 className="font-header text-3xl tracking-widest animate-pulse text-purple-200">
+                  {isVerifying ? 'Verifying Credentials' : 'Accessing Archive'}
+              </h2>
+              <p className="font-mono text-gray-500 mt-2">
+                  {isVerifying ? 'Handshaking with Discord Gateway...' : 'Loading local profile...'}
+              </p>
+          </div>
+      );
+  }
+
+  // 2. Not Logged In - Strict Gate
+  if (!user) {
+      return (
+          <div className="min-h-screen bg-[#050505] relative flex flex-col">
+              {/* Animated Background */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-[#050505] to-[#050505]"></div>
+              <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+              
+              {/* Brand Header for Landing */}
+              <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
+                   <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-tr from-purple-600 to-blue-600 rounded shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+                            <Sparkles className="text-white" size={24} />
+                        </div>
+                        <div>
+                            <h1 className="font-header text-3xl text-white tracking-widest leading-none">MYSTIC</h1>
+                            <div className="text-[10px] text-purple-400 font-bold uppercase tracking-[0.4em] leading-none text-center">Enchant Creator</div>
+                        </div>
+                    </div>
+              </div>
+
+              {/* Login Component (Forced) */}
+              <DiscordLogin onLogin={() => {}} onClose={() => {}} isForced={true} />
+              
+               {notification && (
+                  <div className="fixed bottom-8 right-8 z-[120] animate-in slide-in-from-right fade-in duration-300">
+                      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg border shadow-2xl ${notification.type === 'error' ? 'bg-red-900/90 border-red-500/50 text-red-100' : 'bg-blue-900/90 border-blue-500/50 text-blue-100'}`}>
+                          <AlertTriangle size={20} />
+                          <span className="font-header tracking-wide uppercase text-sm">{notification.message}</span>
+                      </div>
+                  </div>
+              )}
+          </div>
+      );
+  }
+
+  // 3. Authenticated App
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] text-white selection:bg-purple-500/30 selection:text-white">
       
@@ -224,59 +345,69 @@ const App: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-600 rounded flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)] group-hover:scale-110 transition-transform duration-300">
                     <Sparkles className="text-white fill-white/20" size={20} />
                 </div>
-                <div>
+                <div className="hidden sm:block">
                     <h1 className="font-header text-2xl text-white tracking-widest leading-none group-hover:text-purple-300 transition-colors">MYSTIC</h1>
                     <div className="text-[10px] text-purple-400 font-bold uppercase tracking-[0.3em] leading-none">Enchant Creator</div>
                 </div>
             </div>
 
-            <nav className="flex items-center gap-2 md:gap-4">
+            <nav className="flex items-center gap-2 md:gap-3 lg:gap-4 overflow-x-auto no-scrollbar px-2">
                 <button 
                     onClick={() => setView('browse')}
-                    className={`px-4 md:px-6 py-2 md:py-2.5 rounded-lg flex items-center gap-2 font-bold uppercase tracking-wider text-xs transition-all border ${view === 'browse' ? 'bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'border-transparent text-gray-500 hover:text-white hover:bg-white/5'}`}
+                    className={`px-3 md:px-5 py-2 rounded-lg flex items-center gap-2 font-bold uppercase tracking-wider text-[10px] md:text-xs transition-all border ${view === 'browse' ? 'bg-white/10 text-white border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'border-transparent text-gray-500 hover:text-white hover:bg-white/5'}`}
                 >
-                    <LayoutGrid size={16} /> <span className="hidden md:inline">Browse All</span>
+                    <LayoutGrid size={16} /> <span className="hidden md:inline">Browse</span>
                 </button>
                 
                 <button 
                     onClick={() => setView('create')}
-                    className={`px-4 md:px-6 py-2 md:py-2.5 rounded-lg flex items-center gap-2 font-bold uppercase tracking-wider text-xs transition-all border ${view === 'create' ? 'bg-purple-600 text-white border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.5)]' : 'bg-purple-600/10 text-purple-400 border-purple-600/30 hover:bg-purple-600 hover:text-white'}`}
+                    className={`px-3 md:px-5 py-2 rounded-lg flex items-center gap-2 font-bold uppercase tracking-wider text-[10px] md:text-xs transition-all border ${view === 'create' ? 'bg-purple-600 text-white border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.5)]' : 'bg-purple-600/10 text-purple-400 border-purple-600/30 hover:bg-purple-600 hover:text-white'}`}
                 >
                     <Plus size={16} /> <span>Create</span>
                 </button>
 
-                {user && (
-                    <div className="hidden md:flex items-center gap-2 px-4 py-2 text-gray-500 border border-transparent">
-                        <Heart size={16} className={favoritedCount > 0 ? "text-pink-500 fill-pink-500" : ""} /> 
-                        <span className="text-xs font-bold uppercase tracking-wider">Favorites ({favoritedCount})</span>
-                    </div>
-                )}
+                <button 
+                    onClick={() => setView('community')}
+                    className={`px-3 md:px-5 py-2 rounded-lg flex items-center gap-2 font-bold uppercase tracking-wider text-[10px] md:text-xs transition-all border ${view === 'community' ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'border-transparent text-gray-500 hover:text-yellow-400 hover:bg-yellow-900/10'}`}
+                >
+                    <Scroll size={16} /> <span className="hidden md:inline">Lore & Updates</span>
+                </button>
             </nav>
 
-            {user ? (
+            <div className="flex items-center gap-4">
+                {/* Donate Button */}
+                <a 
+                    href={DONATION_LINK} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-bold uppercase tracking-wider rounded shadow hover:shadow-[0_0_15px_rgba(234,179,8,0.6)] transform hover:-translate-y-0.5 transition-all"
+                >
+                    <Heart size={14} className="fill-black" /> Donate
+                </a>
+
+                {/* Profile */}
                 <div className="flex items-center gap-3">
                     <div className="text-right hidden sm:block">
-                        <div className="text-xs font-bold text-white">{user.username}</div>
-                        <div className="text-[10px] text-green-400 uppercase tracking-wide">Verified</div>
+                        <div className="text-xs font-bold text-white max-w-[100px] truncate">{user.username}</div>
+                        {user.isMember ? (
+                            <div className="text-[10px] text-green-400 uppercase tracking-wide">Verified</div>
+                        ) : (
+                            <div className="text-[10px] text-red-400 uppercase tracking-wide flex items-center justify-end gap-1"><AlertTriangle size={8} /> Guest</div>
+                        )}
                     </div>
                     <div className="relative group">
-                         <img src={user.avatar} alt="User" className="w-10 h-10 rounded-full border-2 border-purple-500 cursor-pointer" />
-                         <div className="absolute top-full right-0 mt-2 w-32 py-1 bg-black border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                             <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
-                                <LogOut size={12} /> Logout
-                             </button>
-                         </div>
+                            <img src={user.avatar} alt="User" className={`w-10 h-10 rounded-full border-2 cursor-pointer ${user.isMember ? 'border-green-500' : 'border-red-500'}`} />
+                            <div className="absolute top-full right-0 mt-2 w-48 py-2 bg-black border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                <a href={DONATION_LINK} target="_blank" rel="noreferrer" className="w-full text-left px-4 py-3 text-xs text-yellow-500 hover:bg-white/5 flex items-center gap-2 lg:hidden border-b border-white/5">
+                                    <Coffee size={12} /> Donate / Support
+                                </a>
+                                <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2">
+                                    <LogOut size={12} /> Logout
+                                </button>
+                            </div>
                     </div>
                 </div>
-            ) : (
-                <button 
-                    onClick={() => setShowLogin(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white rounded-lg transition-all font-bold uppercase text-xs tracking-wide shadow-[0_0_15px_rgba(88,101,242,0.4)]"
-                >
-                     <UserIcon size={16} />
-                     <span className="hidden sm:inline">Login with Discord</span>
-                </button>
-            )}
+            </div>
         </div>
       </header>
 
@@ -285,7 +416,13 @@ const App: React.FC = () => {
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] pointer-events-none fixed"></div>
          
          {view === 'create' ? (
-             <CreateView onSave={handleSave} user={user} onLoginRequest={() => setShowLogin(true)} />
+             <CreateView 
+                onSave={handleSave} 
+                user={user} 
+                onLoginRequest={() => {}} 
+             />
+         ) : view === 'community' ? (
+             <CommunityView />
          ) : (
              <GalleryView 
                 items={enchantments} 
@@ -297,16 +434,11 @@ const App: React.FC = () => {
          )}
       </main>
 
-      {/* Login Modal */}
-      {showLogin && (
-          <DiscordLogin onLogin={handleLogin} onClose={() => setShowLogin(false)} />
-      )}
-
       {/* Notification Toast */}
       {notification && (
           <div className="fixed bottom-8 right-8 z-[100] animate-in slide-in-from-right fade-in duration-300">
-              <div className={`flex items-center gap-3 px-6 py-4 rounded-lg border shadow-[0_0_30px_rgba(0,0,0,0.5)] ${notification.type === 'success' ? 'bg-green-900/90 border-green-500/50 text-green-100' : 'bg-blue-900/90 border-blue-500/50 text-blue-100'}`}>
-                  {notification.type === 'success' ? <Sparkles size={20} className="text-green-400" /> : <Info size={20} className="text-blue-400" />}
+              <div className={`flex items-center gap-3 px-6 py-4 rounded-lg border shadow-[0_0_30px_rgba(0,0,0,0.5)] ${notification.type === 'success' ? 'bg-green-900/90 border-green-500/50 text-green-100' : notification.type === 'error' ? 'bg-red-900/90 border-red-500/50 text-red-100' : 'bg-blue-900/90 border-blue-500/50 text-blue-100'}`}>
+                  {notification.type === 'success' ? <Sparkles size={20} className="text-green-400" /> : notification.type === 'error' ? <AlertTriangle size={20} className="text-red-400" /> : <Info size={20} className="text-blue-400" />}
                   <span className="font-header tracking-wide uppercase text-sm">{notification.message}</span>
               </div>
           </div>
