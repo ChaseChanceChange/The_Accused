@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -18,7 +17,6 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
     const [isLoading, setIsLoading] = useState(false);
     
     // 1. Generate a Clean Redirect URI
-    // Discord is strict. If your browser says ".../index.html", but Discord expects ".../", it fails.
     const getRedirectUri = () => {
         if (typeof window === 'undefined') return '';
         const url = new URL(window.location.href);
@@ -29,8 +27,10 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
         return `${url.origin}${cleanPath}`;
     };
 
-    const handleConnect = () => {
+    const handleConnect = (e: React.MouseEvent) => {
+        e.preventDefault(); // Stop any form submission or default link behavior
         setIsLoading(true);
+        
         const redirectUri = getRedirectUri();
         
         console.log("Attempting Discord Login...");
@@ -50,16 +50,7 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
     
     // Bot Invite URL
     const botInviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=8&scope=bot`;
-
-    // Server Invite
     const serverInviteUrl = DISCORD_INVITE_LINK; 
-
-    const [copied, setCopied] = useState(false);
-    const copyRedirect = () => {
-        navigator.clipboard.writeText(getRedirectUri());
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
 
     return (
         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${isForced ? 'bg-[#050505]' : ''}`}>
@@ -143,19 +134,6 @@ export const DiscordLogin: React.FC<DiscordLoginProps> = ({ onClose, isForced = 
                             </a>
                         </div>
                     </div>
-
-                    {/* Debug Info for Config - Only visible if issues persist */}
-                    <div className="mt-6 pt-4 border-t border-white/5 w-full text-center">
-                        <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 mb-1">
-                             <AlertCircle size={10} /> 
-                             <span>Developer Config (Copy this to Discord Portal if redirect fails)</span>
-                        </div>
-                        <div className="bg-black/40 p-2 rounded border border-white/10 flex items-center justify-between gap-2 group cursor-pointer hover:border-white/20 transition-colors" onClick={copyRedirect}>
-                            <code className="text-[10px] text-gray-400 font-mono truncate max-w-[250px]">{getRedirectUri()}</code>
-                            {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} className="text-gray-500 group-hover:text-white" />}
-                        </div>
-                    </div>
-
                 </div>
             </div>
         </div>

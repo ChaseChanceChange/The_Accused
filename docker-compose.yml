@@ -1,17 +1,41 @@
-
 version: '3.8'
 
 services:
+  # 1. Database Service
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+
+  # 2. Backend API & Bot Service
   api:
     build: ./server
     ports:
       - "4000:4000"
     environment:
       - PORT=4000
+      - MONGO_URI=mongodb://mongo:27017/mystic
       - DISCORD_CLIENT_ID=1444798601032372431
-      # IMPORTANT: Add your Bot Token below (never commit this file to public git)
+      # IMPORTANT: Replace with your actual bot token or use a .env file
       - DISCORD_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
       - GUILD_ID=1408571660994482298
-    volumes:
-      - ./server/data:/app/data
+    depends_on:
+      - mongo
     restart: always
+
+  # 3. Frontend Service (Local Web Server)
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./:/usr/share/nginx/html
+    # This simple command trick makes Nginx serve index.html for 404s (SPA Routing support)
+    command: /bin/sh -c "echo 'error_page 404 /index.html;' > /etc/nginx/conf.d/custom.conf && nginx -g 'daemon off;'"
+    restart: always
+
+volumes:
+  mongo-data:
