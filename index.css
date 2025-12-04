@@ -1,0 +1,94 @@
+
+:root {
+  --neon-purple: #a855f7;
+  --neon-blue: #3b82f6;
+  --neon-orange: #f97316;
+  --neon-green: #22c55e;
+  --bg-dark: #050505;
+}
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background-color: var(--bg-dark);
+  color: #e2e8f0;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
+    radial-gradient(circle at 80% 90%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+  min-height: 100vh;
+}
+
+h1, h2, h3, .font-header {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.font-mono {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0f15;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-purple);
+}
+
+.input-cyber {
+  @apply bg-black/40 border border-gray-700 text-gray-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all duration-300 font-mono text-sm;
+}
+
+.btn-cyber {
+  @apply relative overflow-hidden font-header uppercase tracking-wider transition-all duration-300 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)];
+}
+
+.card-hover {
+  @apply transition-transform duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(0,0,0,0.5)];
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.animate-glow {
+  animation: glow-pulse 3s infinite;
+}
+
+.text-glow {
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* 3D TCG Card Effects */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.lore-tooltip {
+  @apply absolute z-50 bg-black/90 border border-yellow-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(234,179,8,0.2)] backdrop-blur-xl text-xs max-w-[250px] pointer-events-none opacity-0 transition-opacity duration-300;
+}
+
+.group:hover .lore-tooltip {
+  opacity: 1;
+}
+
+/* Holographic sheen animation */
+@keyframes sheen-move {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
