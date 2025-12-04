@@ -38,12 +38,20 @@
     <script type="text/javascript">
       (async function() {
         const root = document.getElementById('root');
+        
+        // Helper to show errors
+        function showError(title, message) {
+            root.innerHTML = `<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#ef4444;font-family:monospace;flex-direction:column;text-align:center;padding:1rem">
+                <div style="font-size:1.5rem;margin-bottom:1rem;font-weight:bold">${title}</div>
+                <div style="background:#111;padding:1rem;border-radius:0.5rem;border:1px solid #333;max-width:600px;word-break:break-word">${message}</div>
+                <div style="margin-top:1rem;color:#666;font-size:0.8rem">Check console (F12) for network details</div>
+            </div>`;
+        }
+
         root.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#a855f7;font-family:monospace;flex-direction:column"><div style="margin-bottom:1rem;font-size:2rem">MYSTIC ENCHANT CREATOR</div><div id="loader-status">Initializing App Protocol...</div></div>';
         const status = document.getElementById('loader-status');
 
         // 1. Define External Dependencies (ES Modules)
-        // NOTE: We use ?dev for React to get readable errors instead of minified codes
-        // NOTE: We use ?external=react for libraries to prevent duplicate React instances
         const dependencies = {
           "react": "https://esm.sh/react@18.2.0?dev",
           "react-dom": "https://esm.sh/react-dom@18.2.0?dev",
@@ -74,25 +82,35 @@
           for (const file of localFiles) {
             status.innerText = `Loading ${file.name}...`;
             
-            // Fetch file with cache busting to prevent stale 404s
-            const response = await fetch(`${file.path}?t=${Date.now()}`);
-            if (!response.ok) throw new Error(`Failed to load ${file.path} (Status: ${response.status})`);
-            let tsCode = await response.text();
-            
-            // CRITICAL: Rewrite relative imports to bare imports for Blob URL compatibility
-            // e.g. import ... from './App'  ->  import ... from 'App'
-            tsCode = tsCode.replace(/from\s+['"]\.\/([^'"]+)['"]/g, "from '$1'");
-            tsCode = tsCode.replace(/import\s+['"]\.\/([^'"]+)['"]/g, "import '$1'");
+            try {
+                // Fetch file (removed cache busting query param to avoid static host 404s)
+                const response = await fetch(file.path);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+                }
+                let tsCode = await response.text();
+                
+                // CRITICAL: Rewrite relative imports to bare imports for Blob URL compatibility
+                tsCode = tsCode.replace(/from\s+['"]\.\/([^'"]+)['"]/g, "from '$1'");
+                tsCode = tsCode.replace(/import\s+['"]\.\/([^'"]+)['"]/g, "import '$1'");
 
-            // Compile TSX -> JS
-            const result = Babel.transform(tsCode, {
-              filename: file.path,
-              presets: ['react', 'typescript'],
-            });
+                // Compile TSX -> JS
+                if (typeof Babel === 'undefined') {
+                    throw new Error("Babel compiler failed to load from CDN.");
+                }
+                const result = Babel.transform(tsCode, {
+                  filename: file.path,
+                  presets: ['react', 'typescript'],
+                });
 
-            // Create Blob URL
-            const blob = new Blob([result.code], { type: 'text/javascript' });
-            blobUrls[file.name] = URL.createObjectURL(blob);
+                // Create Blob URL
+                const blob = new Blob([result.code], { type: 'text/javascript' });
+                blobUrls[file.name] = URL.createObjectURL(blob);
+
+            } catch (fileErr) {
+                console.error(`Error processing ${file.name}:`, fileErr);
+                throw new Error(`Failed to load ${file.name} (${file.path}): ${fileErr.message}`);
+            }
           }
 
           // 4. Construct Import Map
@@ -113,20 +131,12 @@
           status.innerText = 'Launching...';
           const entryEl = document.createElement('script');
           entryEl.type = 'module';
-          // Use bare import 'index' which maps to the blob
           entryEl.textContent = "import 'index'";
           document.body.appendChild(entryEl);
 
         } catch (err) {
-          console.error("Loader Error:", err);
-          root.innerHTML = `<div style="padding:2rem;color:red;font-family:monospace;text-align:center">
-            <h3 style="font-size:1.5rem;margin-bottom:1rem">Loader Error</h3>
-            <p>${err.message}</p>
-            <p style="color:#666;font-size:0.8rem;margin-top:1rem">
-              Ensure all files exist in the directory.<br/>
-              Check the console (F12) for network details.
-            </p>
-          </div>`;
+          console.error("Loader Fatal Error:", err);
+          showError("Loader Error", err.message);
         }
       })();
     </script>
