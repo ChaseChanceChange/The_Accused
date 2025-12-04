@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Enchantment, RARITY_COLORS, RARITY_BG } from './types';
-import { Download, Heart, Eye, Zap, Trash2, Loader2, Info } from 'lucide-react';
+import { Download, Heart, Eye, Zap, Trash2, Loader2, Info, Swords } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 interface EnchantmentCardProps {
@@ -177,6 +177,19 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
                          <span className="bg-blue-900/40 border border-blue-500/30 text-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wide">
                              {data.cost}
                          </span>
+                     )}
+                     
+                     {/* Item Score Badge */}
+                     {data.itemScore !== undefined && (
+                        <div className="group/score relative ml-auto">
+                           <span className={`bg-[#111] border ${borderColor} ${textColor} text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wide flex items-center gap-1`}>
+                               <Swords size={10} /> GS:{data.itemScore}
+                           </span>
+                           <div className="lore-tooltip left-0 bottom-full mb-1 w-32">
+                               <div className="text-[10px] uppercase font-bold text-gray-400">Item Score</div>
+                               <div className="text-white">Calculated power based on stats.</div>
+                           </div>
+                        </div>
                      )}
                 </div>
                 

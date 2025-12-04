@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { Enchantment } from './types';
 import { CreateView } from './CreateView';
 import { GalleryView } from './GalleryView';
+import { calculatePowerLevel } from './utils';
 import { Plus, LayoutGrid, Heart, User, Sparkles, Info } from 'lucide-react';
 
 // Mock Data matching the screenshots
@@ -80,12 +81,30 @@ const App: React.FC = () => {
   // Load data on mount
   useEffect(() => {
     const saved = localStorage.getItem('mystic_enchantments');
+    let data: Enchantment[] = [];
+    
     if (saved) {
-      setEnchantments(JSON.parse(saved));
+      data = JSON.parse(saved);
     } else {
-      setEnchantments(MOCK_DATA);
-      localStorage.setItem('mystic_enchantments', JSON.stringify(MOCK_DATA));
+      data = MOCK_DATA;
     }
+
+    // Backfill calculations if missing
+    const updatedWithScores = data.map(item => {
+        if (!item.itemScore) {
+            return { ...item, itemScore: calculatePowerLevel(item) };
+        }
+        return item;
+    });
+
+    // Only update if changes were made
+    if (JSON.stringify(updatedWithScores) !== JSON.stringify(data) || !saved) {
+        setEnchantments(updatedWithScores);
+        localStorage.setItem('mystic_enchantments', JSON.stringify(updatedWithScores));
+    } else {
+        setEnchantments(data);
+    }
+
   }, []);
 
   const showNotification = (message: string, type: 'success' | 'info' = 'success') => {
@@ -94,11 +113,15 @@ const App: React.FC = () => {
   };
 
   const handleSave = (newEnchantment: Enchantment) => {
-    const updated = [newEnchantment, ...enchantments];
+    // Calculate score before saving
+    const score = calculatePowerLevel(newEnchantment);
+    const enchantmentWithScore = { ...newEnchantment, itemScore: score };
+    
+    const updated = [enchantmentWithScore, ...enchantments];
     setEnchantments(updated);
     localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
     setView('browse');
-    showNotification("Enchantment Forged Successfully!");
+    showNotification(`Enchantment Forged! Item Score: ${score}`);
   };
 
   const handleLike = (id: string) => {

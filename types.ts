@@ -19,6 +19,7 @@ export interface Enchantment {
   effects: string[];
   iconUrl?: string;
   author: string;
+  itemScore?: number; // Calculated power level
   stats: {
     likes: number;
     views: number;
