@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -9,6 +10,7 @@
     <!-- Orbitron for headers, Share Tech Mono for data/stats, Rajdhani for UI text -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./index.css">
   <!-- 
      DYNAMIC LOADER SCRIPT 
      This replaces a build step by compiling TSX in the browser.
@@ -30,9 +32,8 @@
       { name: 'index', path: './index.tsx' }
     ];
 
-    // 2. Import Map configuration
-    const importMap = {
-      imports: {
+    // 2. Base Import Map (External Dependencies)
+    const baseImports = {
         "react": "https://esm.sh/react@18.2.0?dev",
         "react/": "https://esm.sh/react@18.2.0/",
         "react-dom": "https://esm.sh/react-dom@18.2.0?dev",
@@ -42,19 +43,14 @@
         "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react",
         "html2canvas": "https://esm.sh/html2canvas@1.4.1",
         "@discord/embedded-app-sdk": "https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.5.0/+esm"
-      }
     };
-
-    // Apply Import Map
-    const mapEl = document.createElement('script');
-    mapEl.type = 'importmap';
-    mapEl.textContent = JSON.stringify(importMap);
-    document.head.appendChild(mapEl);
 
     // 3. Loader Logic
     async function loadApp() {
       try {
-        // Fetch and Transpile
+        const finalImports = { ...baseImports };
+
+        // Fetch and Transpile ALL files first
         for (const file of localFiles) {
           try {
              // Robust relative path handling
@@ -63,11 +59,12 @@
              
              console.log(`Fetching: ${url}`);
              const res = await fetch(url);
-             if (!res.ok) throw new Error(`Status ${res.status}`);
+             if (!res.ok) throw new Error(`Status ${res.status} fetching ${url}`);
              
              const tsCode = await res.text();
 
              // Rewrite imports:  import ... from './App'  ->  import ... from 'App'
+             // This aligns local file imports with the Import Map keys
              const jsCode = transform(tsCode, {
                presets: ['react', 'typescript'],
                filename: file.name + '.tsx'
@@ -77,26 +74,31 @@
              const blob = new Blob([jsCode], { type: 'text/javascript' });
              const blobUrl = URL.createObjectURL(blob);
              
-             // Update map for this file
-             importMap.imports[file.name] = blobUrl;
+             // Add to map
+             finalImports[file.name] = blobUrl;
           } catch (fileErr) {
-             console.error(`Error loading ${file.name} (${file.path}):`, fileErr);
-             throw new Error(`Failed to load ${file.name}. Check console for details.`);
+             console.error(`Error loading ${file.name}:`, fileErr);
+             throw new Error(`Failed to load ${file.name}. Check console.`);
           }
         }
 
-        // Re-apply map with blob URLs
-        mapEl.textContent = JSON.stringify(importMap);
+        // 4. Inject the Import Map ONCE
+        // Browsers require the map to be present before the first module import
+        const mapEl = document.createElement('script');
+        mapEl.type = 'importmap';
+        mapEl.textContent = JSON.stringify({ imports: finalImports });
+        document.head.appendChild(mapEl);
 
-        // Launch
+        // 5. Launch the App
+        console.log("Starting App...");
         await import('index');
 
       } catch (err) {
         document.body.innerHTML = `
-          <div style="color: red; padding: 20px; font-family: monospace;">
-            <h1>Loader Fatal Error</h1>
-            <pre>${err.message}</pre>
-            <p>If you are on GitHub Pages, ensure all filenames in <code>localFiles</code> match exactly (case-sensitive).</p>
+          <div style="color: #ef4444; padding: 20px; font-family: monospace; background: #111; height: 100vh;">
+            <h1 style="font-size: 24px; margin-bottom: 16px;">Loader Fatal Error</h1>
+            <pre style="background: #222; padding: 10px; border-radius: 4px; overflow: auto;">${err.message}</pre>
+            <p style="margin-top: 16px; color: #aaa;">If on GitHub Pages, ensure all files exist in the repo and paths are correct.</p>
           </div>
         `;
         console.error("Loader failed:", err);
@@ -105,7 +107,6 @@
 
     loadApp();
   </script>
-<link rel="stylesheet" href="./index.css">
 <script type="importmap">
 {
   "imports": {
