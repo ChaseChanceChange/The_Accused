@@ -19,13 +19,13 @@
 <script type="importmap">
 {
   "imports": {
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
   }
 }
 </script>
@@ -37,7 +37,8 @@
     <script type="text/javascript">
       (async function() {
         const root = document.getElementById('root');
-        root.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#a855f7;font-family:monospace;flex-direction:column"><div style="margin-bottom:1rem;font-size:2rem">MYSTIC ENCHANT CREATOR</div><div>Initializing App Protocol...</div></div>';
+        root.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#a855f7;font-family:monospace;flex-direction:column"><div style="margin-bottom:1rem;font-size:2rem">MYSTIC ENCHANT CREATOR</div><div id="loader-status">Initializing App Protocol...</div></div>';
+        const status = document.getElementById('loader-status');
 
         // 1. Define External Dependencies (ES Modules)
         const dependencies = {
@@ -53,7 +54,6 @@
         const localFiles = {
           "./types": "./types.ts",
           "./utils": "./utils.ts",
-          "./useApiKey": "./useApiKey.ts",
           "./EnchantmentCard": "./EnchantmentCard.tsx",
           "./DiscordLogin": "./DiscordLogin.tsx",
           "./CommunityView": "./CommunityView.tsx",
@@ -68,15 +68,17 @@
           const blobUrls = {};
           
           for (const [importPath, filePath] of Object.entries(localFiles)) {
-            const response = await fetch(filePath);
-            if (!response.ok) throw new Error(`Failed to load ${filePath}`);
+            status.innerText = `Loading ${filePath}...`;
+            // Add cache busting to prevent stale 404s
+            const response = await fetch(`${filePath}?t=${Date.now()}`);
+            if (!response.ok) throw new Error(`Failed to load ${filePath} (Status: ${response.status})`);
             const tsCode = await response.text();
             
             // Compile TSX -> JS
             const result = Babel.transform(tsCode, {
               filename: filePath,
               presets: ['react', 'typescript'],
-              plugins: [] // ES Modules are preserved by default in Babel standalone when using these presets
+              plugins: [] 
             });
 
             // Create Blob URL
@@ -99,6 +101,7 @@
           document.head.appendChild(mapEl);
 
           // 6. Launch App
+          status.innerText = 'Launching...';
           const entryEl = document.createElement('script');
           entryEl.type = 'module';
           entryEl.textContent = "import './index'";
@@ -106,7 +109,11 @@
 
         } catch (err) {
           console.error("Loader Error:", err);
-          root.innerHTML = `<div style="padding:2rem;color:red"><h3>Loader Error</h3><pre>${err.message}</pre></div>`;
+          root.innerHTML = `<div style="padding:2rem;color:red;font-family:monospace;text-align:center">
+            <h3 style="font-size:1.5rem;margin-bottom:1rem">Loader Error</h3>
+            <p>${err.message}</p>
+            <p style="color:#666;font-size:0.8rem;margin-top:1rem">Check the console (F12) for details.</p>
+          </div>`;
         }
       })();
     </script>
