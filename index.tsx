@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from 'App'; // Bare import matches the loader map
+import App from './App';
 
 const container = document.getElementById('root');
 

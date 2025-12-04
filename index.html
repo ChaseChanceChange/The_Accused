@@ -28,6 +28,7 @@
         z-index: 9999;
         font-family: monospace;
         border-bottom: 2px solid #ef4444;
+        white-space: pre-wrap;
       }
       #loading-screen {
         position: fixed;
@@ -83,28 +84,21 @@
         }
 
         try {
-          // 1. Determine Base Path (e.g., "/The_Accused/")
-          // This ensures we look for files relative to where index.html is served
-          const basePath = window.location.pathname.endsWith('/') 
-            ? window.location.pathname 
-            : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-
-          console.log("Base Path detected:", basePath);
-
-          // 2. Define Files to Load (Order matters for dependencies)
+          // 1. Define Files to Load
+          // We use ./ explicitly to help URL resolution
           const files = [
-            { name: 'types', path: 'types.ts' },
-            { name: 'utils', path: 'utils.ts' },
-            { name: 'EnchantmentCard', path: 'EnchantmentCard.tsx' },
-            { name: 'DiscordLogin', path: 'DiscordLogin.tsx' },
-            { name: 'CommunityView', path: 'CommunityView.tsx' },
-            { name: 'CreateView', path: 'CreateView.tsx' },
-            { name: 'GalleryView', path: 'GalleryView.tsx' },
-            { name: 'App', path: 'App.tsx' },
-            { name: 'index', path: 'index.tsx' }
+            { name: 'types', path: './types.ts' },
+            { name: 'utils', path: './utils.ts' },
+            { name: 'EnchantmentCard', path: './EnchantmentCard.tsx' },
+            { name: 'DiscordLogin', path: './DiscordLogin.tsx' },
+            { name: 'CommunityView', path: './CommunityView.tsx' },
+            { name: 'CreateView', path: './CreateView.tsx' },
+            { name: 'GalleryView', path: './GalleryView.tsx' },
+            { name: 'App', path: './App.tsx' },
+            { name: 'index', path: './index.tsx' }
           ];
 
-          // 3. Define External Dependencies (Import Map)
+          // 2. Define External Dependencies (Import Map)
           const imports = {
             "react": "https://esm.sh/react@18.2.0?dev",
             "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
@@ -116,15 +110,17 @@
 
           const blobUrls = {};
 
-          // 4. Fetch and Transpile Files
+          // 3. Fetch and Transpile Files
           for (const file of files) {
-            status.innerText = `Fetching ${file.path}...`;
+            status.innerText = `Fetching ${file.name}...`;
             
-            const fetchUrl = basePath + file.path;
+            // Robust URL construction: Resolves ./file relative to index.html
+            const fetchUrl = new URL(file.path, document.baseURI).href;
+            
             const response = await fetch(fetchUrl);
             
             if (!response.ok) {
-              throw new Error(`Failed to fetch ${file.path} (Status: ${response.status}). Is the file in the repo?`);
+              throw new Error(`Failed to fetch ${file.path}\nURL: ${fetchUrl}\nStatus: ${response.status} ${response.statusText}`);
             }
 
             let code = await response.text();
@@ -145,14 +141,14 @@
             blobUrls[file.name] = URL.createObjectURL(blob);
           }
 
-          // 5. Build Dynamic Import Map
+          // 4. Build Dynamic Import Map
           const finalImports = { ...imports, ...blobUrls };
           const mapScript = document.createElement('script');
           mapScript.type = "importmap";
           mapScript.textContent = JSON.stringify({ imports: finalImports });
           document.head.appendChild(mapScript);
 
-          // 6. Launch Application
+          // 5. Launch Application
           status.innerText = "Launching...";
           
           // Import the entry point
