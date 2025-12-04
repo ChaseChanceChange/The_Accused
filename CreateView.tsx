@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Enchantment } from './types';
 import { EnchantmentCard } from './EnchantmentCard';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Sparkles, Image as ImageIcon, Trash2, Cpu } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Trash2, Cpu, Settings, Key } from 'lucide-react';
 
 interface CreateViewProps {
     onSave: (e: Enchantment) => void;
@@ -30,6 +30,17 @@ const INITIAL_STATE: Enchantment = {
     createdAt: Date.now()
 };
 
+// Fallback images for when AI generation isn't available
+const FALLBACK_IMAGES = [
+    'https://images.unsplash.com/photo-1633355209376-8575087f941f?q=80&w=400&auto=format&fit=crop', // Dark shield/armor
+    'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&auto=format&fit=crop', // Mystical forest
+    'https://images.unsplash.com/photo-1535295972055-1c762f4483e5?q=80&w=400&auto=format&fit=crop', // Void/Darkness
+    'https://images.unsplash.com/photo-1628151015968-3a4429e9ef04?q=80&w=400&auto=format&fit=crop', // Fire/Magma
+    'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop', // Gold/Treasure
+    'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400&auto=format&fit=crop', // Ice/Crystal
+    'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=400&auto=format&fit=crop', // Lightning
+];
+
 export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
     const [draft, setDraft] = useState<Enchantment>({
         ...INITIAL_STATE, 
@@ -46,6 +57,20 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
     });
     const [isGenerating, setIsGenerating] = useState(false);
     const [isImgGenerating, setIsImgGenerating] = useState(false);
+    
+    // API Key State
+    const [apiKey, setApiKey] = useState('');
+    const [showKeyInput, setShowKeyInput] = useState(false);
+
+    useEffect(() => {
+        const storedKey = localStorage.getItem('user_gemini_key');
+        if (storedKey) setApiKey(storedKey);
+    }, []);
+
+    const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setApiKey(e.target.value);
+        localStorage.setItem('user_gemini_key', e.target.value);
+    };
 
     const updateField = (field: keyof Enchantment, value: any) => {
         setDraft(prev => ({ ...prev, [field]: value }));
@@ -68,13 +93,19 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
     };
 
     // --- AI Functions ---
-    const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const getAI = () => {
+        const keyToUse = apiKey || process.env.API_KEY;
+        if (!keyToUse) return null;
+        return new GoogleGenAI({ apiKey: keyToUse });
+    };
 
     const generateDetails = async () => {
         if (!draft.name) return;
         setIsGenerating(true);
         try {
             const ai = getAI();
+            if (!ai) throw new Error("No API Key");
+
             const prompt = `
             Create a fantasy RPG enchantment details for "${draft.name}". 
             Slot: ${draft.slot}. Rarity: ${draft.rarity}.
@@ -112,7 +143,21 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
                 effects: json.effects || prev.effects
             }));
         } catch (e) {
-            console.error("Error generating text:", e);
+            console.warn("AI Generation unavailable or failed. Using Mock Data.", e);
+            // Mock Fallback
+            setTimeout(() => {
+                setDraft(prev => ({
+                    ...prev,
+                    flavorText: `Legends say that ${prev.name} was crafted during the Age of Stars, imbued with the raw energy of the ${prev.slot}.`,
+                    trigger: "Chance on hit",
+                    cost: "Passive",
+                    effects: [
+                        `Increases ${prev.slot === 'Weapon' ? 'Damage' : 'Armor'} by 150`,
+                        `+5% Critical Strike Chance`,
+                        `User radiates a faint magical aura`
+                    ]
+                }));
+            }, 1000);
         } finally {
             setIsGenerating(false);
         }
@@ -123,6 +168,8 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
         setIsImgGenerating(true);
         try {
             const ai = getAI();
+            if (!ai) throw new Error("No API Key");
+
             const prompt = `
             Game icon for fantasy RPG enchantment "${draft.name}". 
             Slot: ${draft.slot}. Rarity: ${draft.rarity}.
@@ -142,7 +189,12 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
                 setDraft(prev => ({ ...prev, iconUrl: url }));
             }
         } catch (e) {
-            console.error("Error generating icon:", e);
+             console.warn("AI Image Generation unavailable or failed. Using Fallback.", e);
+             // Random fallback image
+             const randomImg = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+             setTimeout(() => {
+                 setDraft(prev => ({ ...prev, iconUrl: randomImg }));
+             }, 1000);
         } finally {
             setIsImgGenerating(false);
         }
@@ -152,12 +204,43 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave }) => {
         <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 pb-24">
             {/* Editor Panel */}
             <div className="flex-1 min-w-0 space-y-6">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded shadow-lg shadow-purple-900/40 shrink-0">
-                        <Sparkles className="text-white" size={20} />
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded shadow-lg shadow-purple-900/40 shrink-0">
+                            <Sparkles className="text-white" size={20} />
+                        </div>
+                        <h1 className="font-header text-2xl md:text-3xl text-white tracking-widest uppercase truncate">Create Enchantment</h1>
                     </div>
-                    <h1 className="font-header text-2xl md:text-3xl text-white tracking-widest uppercase truncate">Create Enchantment</h1>
+                    
+                    {/* API Key Toggle */}
+                    <button 
+                        onClick={() => setShowKeyInput(!showKeyInput)}
+                        className="p-2 text-gray-500 hover:text-white transition-colors"
+                        title="Settings"
+                    >
+                        <Settings size={20} />
+                    </button>
                 </div>
+                
+                {showKeyInput && (
+                    <div className="bg-[#111] border border-gray-700 p-4 rounded-lg animate-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 mb-2 text-yellow-500 text-xs font-bold uppercase tracking-wider">
+                            <Key size={12} /> API Configuration
+                        </div>
+                        <p className="text-gray-400 text-xs mb-3">
+                            Enter your free Gemini API Key to enable AI generation. If left empty, the app will use "Simulation Mode" with mock data.
+                            <br/>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Get a free key here</a>.
+                        </p>
+                        <input 
+                            type="password" 
+                            value={apiKey}
+                            onChange={handleKeyChange}
+                            placeholder="Paste your API Key here (starts with AIza...)"
+                            className="input-cyber w-full p-2 rounded bg-black border-gray-600 text-white"
+                        />
+                    </div>
+                )}
                 
                 <p className="text-gray-400 font-mono text-sm mb-6 border-l-2 border-purple-500 pl-4">
                     Forge your legendary enchantment and share it with the community!
