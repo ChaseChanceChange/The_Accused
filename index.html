@@ -6,164 +6,29 @@
     <title>Mystic Enchant Creator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Orbitron for headers, Share Tech Mono for data/stats, Rajdhani for UI text -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS (CDN for runtime usage) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="./index.css">
-
-    <!-- Babel for in-browser compilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <style>
-      #loader-error {
-        display: none;
-        position: fixed;
-        top: 0; left: 0; width: 100%;
-        background: #450a0a;
-        color: #fca5a5;
-        padding: 20px;
-        z-index: 9999;
-        font-family: monospace;
-        border-bottom: 2px solid #ef4444;
-        white-space: pre-wrap;
-      }
-      #loading-screen {
-        position: fixed;
-        inset: 0;
-        background: #050505;
-        color: #a855f7;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 9000;
-        font-family: 'Orbitron', sans-serif;
-        transition: opacity 0.5s;
-      }
-    </style>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
+    "react": "https://aistudiocdn.com/react@18.2.0",
+    "react/": "https://aistudiocdn.com/react@18.2.0/",
+    "react-dom": "https://aistudiocdn.com/react-dom@18.2.0",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@18.2.0/client",
+    "react-dom/": "https://aistudiocdn.com/react-dom@18.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
+    "recharts": "https://aistudiocdn.com/recharts@2.12.0?external=react,react-dom",
+    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@0.263.1",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-[#050505] text-white overflow-x-hidden">
-    
-    <div id="loader-error"></div>
-    
-    <div id="loading-screen">
-       <div class="text-2xl animate-pulse">INITIALIZING MYSTIC FORGE...</div>
-       <div class="text-xs text-gray-500 mt-2 font-mono" id="loading-status">Loading modules...</div>
-    </div>
-
     <div id="root"></div>
-
-    <script>
-      (async function() {
-        const status = document.getElementById('loading-status');
-        const errorBox = document.getElementById('loader-error');
-        const loadingScreen = document.getElementById('loading-screen');
-
-        function showError(msg) {
-          console.error(msg);
-          errorBox.style.display = 'block';
-          errorBox.innerText = "CRITICAL LOAD ERROR:\n" + msg;
-          status.innerText = "Load Failed.";
-          status.style.color = "red";
-        }
-
-        try {
-          // 1. Define Files to Load
-          // We use ./ explicitly to help URL resolution
-          const files = [
-            { name: 'types', path: './types.ts' },
-            { name: 'utils', path: './utils.ts' },
-            { name: 'EnchantmentCard', path: './EnchantmentCard.tsx' },
-            { name: 'DiscordLogin', path: './DiscordLogin.tsx' },
-            { name: 'CommunityView', path: './CommunityView.tsx' },
-            { name: 'CreateView', path: './CreateView.tsx' },
-            { name: 'GalleryView', path: './GalleryView.tsx' },
-            { name: 'App', path: './App.tsx' },
-            { name: 'index', path: './index.tsx' }
-          ];
-
-          // 2. Define External Dependencies (Import Map)
-          const imports = {
-            "react": "https://esm.sh/react@18.2.0?dev",
-            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
-            "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react",
-            "html2canvas": "https://esm.sh/html2canvas@1.4.1",
-            "@google/genai": "https://esm.sh/@google/genai@0.1.1",
-            "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom"
-          };
-
-          const blobUrls = {};
-
-          // 3. Fetch and Transpile Files
-          for (const file of files) {
-            status.innerText = `Fetching ${file.name}...`;
-            
-            // Robust URL construction: Resolves ./file relative to index.html
-            const fetchUrl = new URL(file.path, document.baseURI).href;
-            
-            const response = await fetch(fetchUrl);
-            
-            if (!response.ok) {
-              throw new Error(`Failed to fetch ${file.path}\nURL: ${fetchUrl}\nStatus: ${response.status} ${response.statusText}`);
-            }
-
-            let code = await response.text();
-
-            // Transform imports: 
-            // import ... from './types' -> import ... from 'types'
-            // This allows us to map them to Blob URLs later
-            code = code.replace(/from\s+['"]\.\/([^'"]+)['"]/g, "from '$1'");
-
-            // Transpile TSX -> JS
-            const result = Babel.transform(code, {
-              presets: ['react', 'typescript'],
-              filename: file.path
-            });
-
-            // Create Blob URL
-            const blob = new Blob([result.code], { type: 'application/javascript' });
-            blobUrls[file.name] = URL.createObjectURL(blob);
-          }
-
-          // 4. Build Dynamic Import Map
-          const finalImports = { ...imports, ...blobUrls };
-          const mapScript = document.createElement('script');
-          mapScript.type = "importmap";
-          mapScript.textContent = JSON.stringify({ imports: finalImports });
-          document.head.appendChild(mapScript);
-
-          // 5. Launch Application
-          status.innerText = "Launching...";
-          
-          // Import the entry point
-          await import(blobUrls['index']);
-          
-          // Fade out loader
-          setTimeout(() => {
-            loadingScreen.style.opacity = '0';
-            setTimeout(() => loadingScreen.remove(), 500);
-          }, 500);
-
-        } catch (err) {
-          showError(err.message);
-        }
-      })();
-    </script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

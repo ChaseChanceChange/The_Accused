@@ -7,15 +7,6 @@
 export type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
 export type Slot = 'Weapon' | 'Chest' | 'Head' | 'Legs' | 'Hands' | 'Ring' | 'Trinket';
 
-// === DISCORD CONFIGURATION ===
-export const DISCORD_CLIENT_ID = '1444798601032372431';
-export const REQUIRED_GUILD_ID = '1408571660994482298'; 
-export const TARGET_CHANNEL_ID = '1444728291792654497';
-export const DISCORD_INVITE_LINK = 'https://discord.gg/MGZUeqhB4V';
-
-// === DONATION ===
-export const DONATION_LINK = 'https://www.paypal.com/paypalme/MilliesTipBowl?locale.x=en_IE';
-
 export interface User {
   id: string;
   username: string;
@@ -60,19 +51,16 @@ export const RARITY_BG = {
   Legendary: 'bg-gradient-to-br from-orange-900/30 to-orange-900/10',
 };
 
-// === LEGACY / COMIC CREATOR TYPES ===
-// These types are required for legacy components (Book, Panel, Setup)
-// that may be present in the codebase.
-
+// Legacy Comic Creator Types & Constants (kept for build safety if needed, though unused)
 export interface Persona {
   base64: string;
 }
 
 export interface ComicFace {
-  pageIndex: number;
+  pageIndex?: number;
+  type: 'cover' | 'story' | 'back_cover';
   imageUrl?: string;
   isLoading?: boolean;
-  type?: 'cover' | 'back_cover' | 'story';
   isDecisionPage?: boolean;
   choices: string[];
   resolvedChoice?: string;
@@ -80,13 +68,22 @@ export interface ComicFace {
 
 export const TOTAL_PAGES = 8;
 export const INITIAL_PAGES = 4;
-export const GATE_PAGE = 0;
+export const GATE_PAGE = 1;
 
-export const GENRES = ['Superhero', 'Fantasy', 'Sci-Fi', 'Mystery', 'Custom'];
+export const GENRES = [
+  'Superhero',
+  'Fantasy',
+  'Sci-Fi',
+  'Cyberpunk',
+  'Noir',
+  'Mystery',
+  'Custom'
+];
 
 export const LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'ja', name: 'Japanese' },
   { code: 'es', name: 'Spanish' },
   { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
 ];

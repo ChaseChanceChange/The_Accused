@@ -289,14 +289,11 @@ export const CreateView: React.FC<CreateViewProps> = ({ onSave, user, onLoginReq
                                     onClick={generateDetails}
                                     disabled={isGenerating || !draft.name}
                                     className="absolute right-1 top-1 bottom-1 px-3 bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white rounded flex items-center justify-center disabled:opacity-50 transition-all border border-purple-600/30"
-                                    title={apiKey ? "Generate with Gemini" : "Simulate Generation (No Key)"}
+                                    title="Auto-fill with AI"
                                 >
                                     <Cpu size={18} className={isGenerating ? "animate-spin" : ""} />
                                 </button>
                             </div>
-                            {!apiKey && (
-                                <p className="text-[10px] text-gray-500 text-right">Running in Simulation Mode (No API Key)</p>
-                            )}
                         </div>
 
                         <div className="space-y-2">
