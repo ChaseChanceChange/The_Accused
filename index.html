@@ -50,40 +50,45 @@
           "html2canvas": "https://esm.sh/html2canvas"
         };
 
-        // 2. Define Local Files to Load
-        const localFiles = {
-          "./types": "./types.ts",
-          "./utils": "./utils.ts",
-          "./EnchantmentCard": "./EnchantmentCard.tsx",
-          "./DiscordLogin": "./DiscordLogin.tsx",
-          "./CommunityView": "./CommunityView.tsx",
-          "./CreateView": "./CreateView.tsx",
-          "./GalleryView": "./GalleryView.tsx",
-          "./App": "./App.tsx",
-          "./index": "./index.tsx"
-        };
+        // 2. Define Local Files (Name = Bare Import Specifier, Path = File Location)
+        const localFiles = [
+          { name: "types", path: "./types.ts" },
+          { name: "utils", path: "./utils.ts" },
+          { name: "EnchantmentCard", path: "./EnchantmentCard.tsx" },
+          { name: "DiscordLogin", path: "./DiscordLogin.tsx" },
+          { name: "CommunityView", path: "./CommunityView.tsx" },
+          { name: "CreateView", path: "./CreateView.tsx" },
+          { name: "GalleryView", path: "./GalleryView.tsx" },
+          { name: "App", path: "./App.tsx" },
+          { name: "index", path: "./index.tsx" }
+        ];
 
         try {
-          // 3. Fetch and Compile Local Files
+          // 3. Fetch, Rewrite, and Compile Local Files
           const blobUrls = {};
           
-          for (const [importPath, filePath] of Object.entries(localFiles)) {
-            status.innerText = `Loading ${filePath}...`;
-            // Add cache busting to prevent stale 404s
-            const response = await fetch(`${filePath}?t=${Date.now()}`);
-            if (!response.ok) throw new Error(`Failed to load ${filePath} (Status: ${response.status})`);
-            const tsCode = await response.text();
+          for (const file of localFiles) {
+            status.innerText = `Loading ${file.name}...`;
             
+            // Fetch file with cache busting
+            const response = await fetch(`${file.path}?t=${Date.now()}`);
+            if (!response.ok) throw new Error(`Failed to load ${file.path} (Status: ${response.status})`);
+            let tsCode = await response.text();
+            
+            // CRITICAL: Rewrite relative imports to bare imports for Blob URL compatibility
+            // e.g. import ... from './App'  ->  import ... from 'App'
+            tsCode = tsCode.replace(/from\s+['"]\.\/([^'"]+)['"]/g, "from '$1'");
+            tsCode = tsCode.replace(/import\s+['"]\.\/([^'"]+)['"]/g, "import '$1'");
+
             // Compile TSX -> JS
             const result = Babel.transform(tsCode, {
-              filename: filePath,
+              filename: file.path,
               presets: ['react', 'typescript'],
-              plugins: [] 
             });
 
             // Create Blob URL
             const blob = new Blob([result.code], { type: 'text/javascript' });
-            blobUrls[importPath] = URL.createObjectURL(blob);
+            blobUrls[file.name] = URL.createObjectURL(blob);
           }
 
           // 4. Construct Import Map
@@ -104,7 +109,8 @@
           status.innerText = 'Launching...';
           const entryEl = document.createElement('script');
           entryEl.type = 'module';
-          entryEl.textContent = "import './index'";
+          // Use bare import 'index' which maps to the blob
+          entryEl.textContent = "import 'index'";
           document.body.appendChild(entryEl);
 
         } catch (err) {
