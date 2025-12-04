@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -41,12 +42,15 @@
         const status = document.getElementById('loader-status');
 
         // 1. Define External Dependencies (ES Modules)
+        // NOTE: We use ?dev for React to get readable errors instead of minified codes
+        // NOTE: We use ?external=react for libraries to prevent duplicate React instances
         const dependencies = {
-          "react": "https://esm.sh/react@18.2.0",
-          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+          "react": "https://esm.sh/react@18.2.0?dev",
+          "react-dom": "https://esm.sh/react-dom@18.2.0?dev",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
           "@google/genai": "https://esm.sh/@google/genai",
           "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
-          "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+          "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react",
           "html2canvas": "https://esm.sh/html2canvas"
         };
 
@@ -70,7 +74,7 @@
           for (const file of localFiles) {
             status.innerText = `Loading ${file.name}...`;
             
-            // Fetch file with cache busting
+            // Fetch file with cache busting to prevent stale 404s
             const response = await fetch(`${file.path}?t=${Date.now()}`);
             if (!response.ok) throw new Error(`Failed to load ${file.path} (Status: ${response.status})`);
             let tsCode = await response.text();
@@ -118,7 +122,10 @@
           root.innerHTML = `<div style="padding:2rem;color:red;font-family:monospace;text-align:center">
             <h3 style="font-size:1.5rem;margin-bottom:1rem">Loader Error</h3>
             <p>${err.message}</p>
-            <p style="color:#666;font-size:0.8rem;margin-top:1rem">Check the console (F12) for details.</p>
+            <p style="color:#666;font-size:0.8rem;margin-top:1rem">
+              Ensure all files exist in the directory.<br/>
+              Check the console (F12) for network details.
+            </p>
           </div>`;
         }
       })();
