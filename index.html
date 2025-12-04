@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -12,12 +11,9 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Babel for Browser Compilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
     <!-- Custom Styles -->
     <link rel="stylesheet" href="./index.css">
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.1",
@@ -26,119 +22,15 @@
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>
 </head>
-<body class="bg-[#050505] text-white overflow-x-hidden">
+  <body class="bg-[#050505] text-white overflow-x-hidden">
     <div id="root"></div>
-
-    <!-- Application Loader -->
-    <script type="text/javascript">
-      (async function() {
-        const root = document.getElementById('root');
-        
-        // Helper to show errors
-        function showError(title, message) {
-            root.innerHTML = `<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#ef4444;font-family:monospace;flex-direction:column;text-align:center;padding:1rem">
-                <div style="font-size:1.5rem;margin-bottom:1rem;font-weight:bold">${title}</div>
-                <div style="background:#111;padding:1rem;border-radius:0.5rem;border:1px solid #333;max-width:600px;word-break:break-word">${message}</div>
-                <div style="margin-top:1rem;color:#666;font-size:0.8rem">Check console (F12) for network details</div>
-            </div>`;
-        }
-
-        root.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#a855f7;font-family:monospace;flex-direction:column"><div style="margin-bottom:1rem;font-size:2rem">MYSTIC ENCHANT CREATOR</div><div id="loader-status">Initializing App Protocol...</div></div>';
-        const status = document.getElementById('loader-status');
-
-        // 1. Define External Dependencies (ES Modules)
-        const dependencies = {
-          "react": "https://esm.sh/react@18.2.0?dev",
-          "react-dom": "https://esm.sh/react-dom@18.2.0?dev",
-          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
-          "@google/genai": "https://esm.sh/@google/genai",
-          "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
-          "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react",
-          "html2canvas": "https://esm.sh/html2canvas"
-        };
-
-        // 2. Define Local Files (Name = Bare Import Specifier, Path = File Location)
-        const localFiles = [
-          { name: "types", path: "./types.ts" },
-          { name: "utils", path: "./utils.ts" },
-          { name: "EnchantmentCard", path: "./EnchantmentCard.tsx" },
-          { name: "DiscordLogin", path: "./DiscordLogin.tsx" },
-          { name: "CommunityView", path: "./CommunityView.tsx" },
-          { name: "CreateView", path: "./CreateView.tsx" },
-          { name: "GalleryView", path: "./GalleryView.tsx" },
-          { name: "App", path: "./App.tsx" },
-          { name: "index", path: "./index.tsx" }
-        ];
-
-        try {
-          // 3. Fetch, Rewrite, and Compile Local Files
-          const blobUrls = {};
-          
-          for (const file of localFiles) {
-            status.innerText = `Loading ${file.name}...`;
-            
-            try {
-                // Fetch file (removed cache busting query param to avoid static host 404s)
-                const response = await fetch(file.path);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status} - ${response.statusText}`);
-                }
-                let tsCode = await response.text();
-                
-                // CRITICAL: Rewrite relative imports to bare imports for Blob URL compatibility
-                tsCode = tsCode.replace(/from\s+['"]\.\/([^'"]+)['"]/g, "from '$1'");
-                tsCode = tsCode.replace(/import\s+['"]\.\/([^'"]+)['"]/g, "import '$1'");
-
-                // Compile TSX -> JS
-                if (typeof Babel === 'undefined') {
-                    throw new Error("Babel compiler failed to load from CDN.");
-                }
-                const result = Babel.transform(tsCode, {
-                  filename: file.path,
-                  presets: ['react', 'typescript'],
-                });
-
-                // Create Blob URL
-                const blob = new Blob([result.code], { type: 'text/javascript' });
-                blobUrls[file.name] = URL.createObjectURL(blob);
-
-            } catch (fileErr) {
-                console.error(`Error processing ${file.name}:`, fileErr);
-                throw new Error(`Failed to load ${file.name} (${file.path}): ${fileErr.message}`);
-            }
-          }
-
-          // 4. Construct Import Map
-          const importMap = {
-            imports: {
-              ...dependencies,
-              ...blobUrls
-            }
-          };
-
-          // 5. Inject Import Map
-          const mapEl = document.createElement('script');
-          mapEl.type = 'importmap';
-          mapEl.textContent = JSON.stringify(importMap);
-          document.head.appendChild(mapEl);
-
-          // 6. Launch App
-          status.innerText = 'Launching...';
-          const entryEl = document.createElement('script');
-          entryEl.type = 'module';
-          entryEl.textContent = "import 'index'";
-          document.body.appendChild(entryEl);
-
-        } catch (err) {
-          console.error("Loader Fatal Error:", err);
-          showError("Loader Error", err.message);
-        }
-      })();
-    </script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>
