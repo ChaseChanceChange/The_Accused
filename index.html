@@ -6,29 +6,109 @@
     <title>Mystic Enchant Creator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Orbitron for headers, Share Tech Mono for data/stats, Rajdhani for UI text -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-  <script type="importmap">
+    
+    <!-- Babel for Browser Compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="./index.css">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@18.2.0",
-    "react/": "https://aistudiocdn.com/react@18.2.0/",
-    "react-dom": "https://aistudiocdn.com/react-dom@18.2.0",
-    "react-dom/client": "https://aistudiocdn.com/react-dom@18.2.0/client",
-    "react-dom/": "https://aistudiocdn.com/react-dom@18.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
-    "recharts": "https://aistudiocdn.com/recharts@2.12.0?external=react,react-dom",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@0.263.1",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
     "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
   }
 }
 </script>
-<link rel="stylesheet" href="./index.css">
 </head>
-  <body class="bg-[#050505] text-white overflow-x-hidden">
+<body class="bg-[#050505] text-white overflow-x-hidden">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
-  </body>
+
+    <!-- Application Loader -->
+    <script type="text/javascript">
+      (async function() {
+        const root = document.getElementById('root');
+        root.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;color:#a855f7;font-family:monospace;flex-direction:column"><div style="margin-bottom:1rem;font-size:2rem">MYSTIC ENCHANT CREATOR</div><div>Initializing App Protocol...</div></div>';
+
+        // 1. Define External Dependencies (ES Modules)
+        const dependencies = {
+          "react": "https://esm.sh/react@18.2.0",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+          "@google/genai": "https://esm.sh/@google/genai",
+          "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
+          "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+          "html2canvas": "https://esm.sh/html2canvas"
+        };
+
+        // 2. Define Local Files to Load
+        const localFiles = {
+          "./types": "./types.ts",
+          "./utils": "./utils.ts",
+          "./useApiKey": "./useApiKey.ts",
+          "./EnchantmentCard": "./EnchantmentCard.tsx",
+          "./DiscordLogin": "./DiscordLogin.tsx",
+          "./CommunityView": "./CommunityView.tsx",
+          "./CreateView": "./CreateView.tsx",
+          "./GalleryView": "./GalleryView.tsx",
+          "./App": "./App.tsx",
+          "./index": "./index.tsx"
+        };
+
+        try {
+          // 3. Fetch and Compile Local Files
+          const blobUrls = {};
+          
+          for (const [importPath, filePath] of Object.entries(localFiles)) {
+            const response = await fetch(filePath);
+            if (!response.ok) throw new Error(`Failed to load ${filePath}`);
+            const tsCode = await response.text();
+            
+            // Compile TSX -> JS
+            const result = Babel.transform(tsCode, {
+              filename: filePath,
+              presets: ['react', 'typescript'],
+              plugins: [] // ES Modules are preserved by default in Babel standalone when using these presets
+            });
+
+            // Create Blob URL
+            const blob = new Blob([result.code], { type: 'text/javascript' });
+            blobUrls[importPath] = URL.createObjectURL(blob);
+          }
+
+          // 4. Construct Import Map
+          const importMap = {
+            imports: {
+              ...dependencies,
+              ...blobUrls
+            }
+          };
+
+          // 5. Inject Import Map
+          const mapEl = document.createElement('script');
+          mapEl.type = 'importmap';
+          mapEl.textContent = JSON.stringify(importMap);
+          document.head.appendChild(mapEl);
+
+          // 6. Launch App
+          const entryEl = document.createElement('script');
+          entryEl.type = 'module';
+          entryEl.textContent = "import './index'";
+          document.body.appendChild(entryEl);
+
+        } catch (err) {
+          console.error("Loader Error:", err);
+          root.innerHTML = `<div style="padding:2rem;color:red"><h3>Loader Error</h3><pre>${err.message}</pre></div>`;
+        }
+      })();
+    </script>
+</body>
 </html>
