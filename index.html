@@ -2,116 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mystic Enchant Creator</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./index.css">
-  <script type="module">
-    import { transform } from 'https://esm.sh/@babel/standalone@7.23.6';
-
-    const localFiles = [
-      { name: 'App', path: './App.tsx' },
-      { name: 'CreateView', path: './CreateView.tsx' },
-      { name: 'GalleryView', path: './GalleryView.tsx' },
-      { name: 'DiscordLogin', path: './DiscordLogin.tsx' },
-      { name: 'CommunityView', path: './CommunityView.tsx' },
-      { name: 'EnchantmentCard', path: './EnchantmentCard.tsx' },
-      { name: 'utils', path: './utils.ts' },
-      { name: 'api', path: './api.ts' },
-      { name: 'types', path: './types.ts' },
-      { name: 'index', path: './index.tsx' }
-    ];
-
-    const baseImports = {
-        "react": "https://esm.sh/react@18.2.0?dev",
-        "react/": "https://esm.sh/react@18.2.0/",
-        "react-dom": "https://esm.sh/react-dom@18.2.0?dev",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
-        "@google/genai": "https://esm.sh/@google/genai@0.1.1",
-        "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
-        "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react",
-        "html2canvas": "https://esm.sh/html2canvas@1.4.1",
-        "@discord/embedded-app-sdk": "https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.5.0/+esm"
-    };
-
-    async function loadApp() {
-      try {
-        const finalImports = { ...baseImports };
-
-        for (const file of localFiles) {
-          try {
-             // If we are served by Nginx in Docker, accessing /foo might trigger a 404 redirect to index.html.
-             // We need to ensure we are always fetching the raw source files relative to the base, not the current URL path.
-             // document.baseURI handles this correctly if <base> tag is present, otherwise fallback to location.
-             const path = file.path.startsWith('.') ? file.path : `./${file.path}`;
-             const url = new URL(path, document.baseURI).href;
-             
-             console.log(`Fetching: ${url}`);
-             const res = await fetch(url);
-             if (!res.ok) throw new Error(`Status ${res.status} fetching ${url}`);
-             
-             const tsCode = await res.text();
-             
-             // Detect if Nginx served us HTML (index.html) instead of TSX due to a routing error
-             if (tsCode.trim().startsWith('<!DOCTYPE html>')) {
-                 throw new Error(`Server returned HTML instead of Code for ${file.name}. Is the file missing?`);
-             }
-
-             const jsCode = transform(tsCode, {
-               presets: ['react', 'typescript'],
-               filename: file.name + '.tsx'
-             }).code.replace(/from ['"]\.\/([^'"]+)['"]/g, "from '$1'");
-             
-             const blob = new Blob([jsCode], { type: 'text/javascript' });
-             finalImports[file.name] = URL.createObjectURL(blob);
-          } catch (fileErr) {
-             console.error(`Error loading ${file.name}:`, fileErr);
-             throw new Error(`Failed to load ${file.name}. Check console.`);
-          }
-        }
-
-        const mapEl = document.createElement('script');
-        mapEl.type = 'importmap';
-        mapEl.textContent = JSON.stringify({ imports: finalImports });
-        document.head.appendChild(mapEl);
-
-        console.log("Starting App...");
-        await import('index');
-
-      } catch (err) {
-        document.body.innerHTML = `
-          <div style="color: #ef4444; padding: 20px; font-family: monospace; background: #111; height: 100vh;">
-            <h1 style="font-size: 24px; margin-bottom: 16px;">Loader Fatal Error</h1>
-            <pre style="background: #222; padding: 10px; border-radius: 4px; overflow: auto;">${err.message}</pre>
-            <p style="margin-top: 16px; color: #aaa;">If running in Docker, ensure local volumes are mounted correctly.</p>
-          </div>
-        `;
-        console.error("Loader failed:", err);
-      }
-    }
-
-    loadApp();
-  </script>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "@discord/embedded-app-sdk": "https://aistudiocdn.com/@discord/embedded-app-sdk@^2.4.0",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "node-fetch": "https://aistudiocdn.com/node-fetch@^3.3.2"
-  }
-}
-</script>
-</head>
-  <body class="bg-[#050505] text-white overflow-x-hidden">
+    <script type="module" src="/index.tsx"></script>
+  </head>
+  <body>
     <div id="root"></div>
   </body>
 </html>
