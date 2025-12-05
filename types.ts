@@ -50,6 +50,24 @@ export interface Enchantment {
   isLiked?: boolean;
 }
 
+export interface ComicFace {
+    type: 'cover' | 'back_cover' | 'story';
+    pageIndex?: number;
+    imageUrl?: string;
+    isDecisionPage?: boolean;
+    choices: string[];
+    resolvedChoice?: string;
+    isLoading?: boolean;
+}
+
+export interface Persona {
+    base64: string;
+}
+
+export const TOTAL_PAGES = 10;
+export const INITIAL_PAGES = 10;
+export const GATE_PAGE = 2;
+
 // Discord SDK Types
 export interface DiscordSDK {
     ready: () => Promise<void>;
