@@ -48,6 +48,11 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
   const borderColor = colorClass.split(' ')[1];
   const textColor = colorClass.split(' ')[0];
   const shadowColor = colorClass.split(' ')[2];
+  
+  // Dynamic glow color based on rarity for animation
+  const glowColorVar = data.rarity === 'Legendary' ? '#f97316' : 
+                       data.rarity === 'Epic' ? '#a855f7' : 
+                       data.rarity === 'Rare' ? '#3b82f6' : '#9ca3af';
 
   // 3D Tilt Logic
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -57,12 +62,12 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Calculate rotation (max 10 degrees)
+    // Calculate rotation (max 12 degrees for more pop)
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     
-    const rotateX = ((y - centerY) / centerY) * -10;
-    const rotateY = ((x - centerX) / centerX) * 10;
+    const rotateX = ((y - centerY) / centerY) * -12;
+    const rotateY = ((x - centerX) / centerX) * 12;
 
     setRotation({ x: rotateX, y: rotateY });
     setSheenPos({ x: (x / rect.width) * 100, y: (y / rect.height) * 100 });
@@ -99,7 +104,7 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
             const canvas = await html2canvas(cardRef.current!, {
                 useCORS: true,
                 backgroundColor: null,
-                scale: 2,
+                scale: 3, // Higher quality capture
                 logging: false
             });
             
@@ -144,37 +149,38 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
           <div 
             ref={cardRef}
             style={{
-                transform: isDownloading ? 'none' : `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) scale(${isHovering ? 1.03 : 1})`,
-                transition: isHovering ? 'transform 0.1s ease-out' : 'transform 0.5s ease-out'
-            }}
-            className={`relative w-full rounded-xl overflow-hidden border-[3px] ${borderColor} ${RARITY_BG[data.rarity]} backdrop-blur-md flex flex-col shadow-[0_0_30px_-10px_rgba(0,0,0,1)] ${shadowColor} transform-style-3d bg-[#0a0a0a]`}
+                transform: isDownloading ? 'none' : `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) scale(${isHovering ? 1.05 : 1})`,
+                transition: isHovering ? 'transform 0.1s ease-out' : 'transform 0.5s ease-out',
+                '--glow-color': glowColorVar
+            } as React.CSSProperties}
+            className={`relative w-full rounded-xl overflow-hidden border-[3px] ${borderColor} ${RARITY_BG[data.rarity]} backdrop-blur-xl flex flex-col shadow-[0_0_30px_-10px_rgba(0,0,0,1)] ${shadowColor} transform-style-3d bg-[#0a0a0a] ${data.rarity === 'Legendary' ? 'animate-pulse-glow' : ''}`}
           >
             
             {/* Enhanced Holographic Sheen Overlay */}
             {!isDownloading && (
                 <div 
-                    className="absolute inset-0 pointer-events-none z-20 opacity-0 group-hover/container:opacity-100 transition-opacity duration-500 mix-blend-hard-light"
+                    className="absolute inset-0 pointer-events-none z-20 opacity-0 group-hover/container:opacity-100 transition-opacity duration-500 mix-blend-overlay"
                     style={{
-                        background: `linear-gradient(115deg, transparent 20%, rgba(0, 255, 255, 0.2) ${sheenPos.x - 15}%, rgba(255, 0, 255, 0.2) ${sheenPos.x}%, rgba(255, 255, 0, 0.2) ${sheenPos.x + 15}%, transparent 80%)`,
-                        filter: 'blur(2px)'
+                        background: `linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.3) ${sheenPos.x - 15}%, rgba(255, 255, 255, 0.5) ${sheenPos.x}%, rgba(255, 255, 255, 0.3) ${sheenPos.x + 15}%, transparent 80%)`,
+                        filter: 'blur(1px)'
                     }}
                 />
             )}
 
             {/* Header Section */}
-            <div className="p-5 relative z-10 flex justify-between items-start border-b border-white/5 bg-black/40">
+            <div className="p-5 relative z-10 flex justify-between items-start border-b border-white/5 bg-black/50">
               <div className="flex-1 pr-4 group/name relative">
-                <h2 className={`font-header text-2xl uppercase tracking-wider ${textColor} drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-none mb-1 cursor-help`}>
+                <h2 className={`font-header text-2xl uppercase tracking-wider ${data.rarity === 'Legendary' ? 'text-shimmer-gold' : textColor} drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-none mb-1 cursor-help`}>
                   {data.name || "Unknown Enchantment"}
                 </h2>
                 
                 {/* Cost & Rarity Sub-header */}
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-2">
                      <span className="text-gray-400 text-xs font-bold uppercase tracking-[0.1em] font-mono">
                          {data.rarity}
                      </span>
                      {data.cost && (
-                         <span className="bg-blue-900/40 border border-blue-500/30 text-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wide">
+                         <span className="bg-blue-900/40 border border-blue-500/30 text-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wide shadow-[0_0_10px_rgba(59,130,246,0.2)]">
                              {data.cost}
                          </span>
                      )}
@@ -182,7 +188,7 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
                      {/* Item Score Badge */}
                      {data.itemScore !== undefined && (
                         <div className="group/score relative ml-auto">
-                           <span className={`bg-[#111] border ${borderColor} ${textColor} text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wide flex items-center gap-1`}>
+                           <span className={`bg-[#050505] border ${borderColor} ${textColor} text-[10px] font-bold px-2 py-0.5 rounded font-mono uppercase tracking-wide flex items-center gap-1 shadow-md`}>
                                <Swords size={10} /> GS:{data.itemScore}
                            </span>
                            <div className="lore-tooltip left-0 bottom-full mb-1 w-32">
@@ -212,7 +218,7 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
                       {/* Scanline effect on icon */}
                       <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%] pointer-events-none"></div>
                    </div>
-                   {data.iconUrl && <div className="absolute -top-2 -right-2 bg-orange-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded border border-orange-400 font-mono shadow-lg z-20">ICON</div>}
+                   {data.iconUrl && <div className="absolute -top-2 -right-2 bg-gradient-to-br from-orange-600 to-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded border border-orange-400 font-mono shadow-lg z-20">ICON</div>}
               </div>
             </div>
 
@@ -222,7 +228,7 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
               {/* Tags */}
               <div className="flex flex-wrap gap-2">
                  <div className="relative group/slot cursor-help">
-                     <span className="bg-orange-500/10 text-orange-300 border border-orange-500/30 px-2 py-1 text-xs font-bold uppercase rounded-sm tracking-wide">
+                     <span className="bg-orange-500/10 text-orange-300 border border-orange-500/30 px-2 py-1 text-xs font-bold uppercase rounded-sm tracking-wide shadow-[0_0_10px_rgba(249,115,22,0.1)]">
                        {data.slot}
                      </span>
                      {/* Lore Tooltip for Slot */}
@@ -232,7 +238,7 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
                      </div>
                  </div>
                  {data.type && (
-                   <span className="bg-blue-500/10 text-blue-300 border border-blue-500/30 px-2 py-1 text-xs font-bold uppercase rounded-sm tracking-wide">
+                   <span className="bg-blue-500/10 text-blue-300 border border-blue-500/30 px-2 py-1 text-xs font-bold uppercase rounded-sm tracking-wide shadow-[0_0_10px_rgba(59,130,246,0.1)]">
                      {data.type}
                    </span>
                  )}
@@ -240,7 +246,7 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
 
               {/* Flavor Text with Tooltip */}
               <div className="relative group/flavor cursor-help">
-                  <div className="text-yellow-500/80 italic text-sm font-serif border-l-2 border-yellow-500/30 pl-3 leading-relaxed min-h-[40px]">
+                  <div className="text-yellow-500/80 italic text-sm font-serif border-l-2 border-yellow-500/30 pl-3 leading-relaxed min-h-[40px] drop-shadow-sm">
                     "{data.flavorText || "The magic remains dormant..."}"
                   </div>
                   
@@ -254,9 +260,9 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
               </div>
 
               {/* Effects List */}
-              <div className="font-mono text-sm leading-relaxed space-y-3 min-h-[100px] bg-black/20 p-3 rounded border border-white/5">
+              <div className="font-mono text-sm leading-relaxed space-y-3 min-h-[100px] bg-black/40 p-3 rounded border border-white/5 shadow-inner">
                   {data.trigger && (
-                      <div className="text-gray-300 flex justify-between items-baseline border-b border-white/5 pb-1">
+                      <div className="text-gray-300 flex justify-between items-baseline border-b border-white/10 pb-1">
                           <span className="text-gray-500 uppercase text-[10px] tracking-widest">Trigger</span>
                           <span className="text-blue-300 font-bold">{data.trigger}</span>
                       </div>
@@ -264,8 +270,8 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
                   
                   <div className="space-y-2 mt-2">
                       {data.effects.map((effect, idx) => (
-                          <div key={idx} className="text-green-400 drop-shadow-[0_0_5px_rgba(34,197,94,0.2)] flex items-start gap-2">
-                              <span className="mt-1.5 w-1 h-1 bg-green-500 rounded-full shrink-0"></span>
+                          <div key={idx} className="text-green-400 drop-shadow-[0_0_5px_rgba(34,197,94,0.3)] flex items-start gap-2">
+                              <span className="mt-1.5 w-1 h-1 bg-green-500 rounded-full shrink-0 shadow-[0_0_5px_rgba(34,197,94,0.8)]"></span>
                               <span>{effect}</span>
                           </div>
                       ))}
@@ -280,9 +286,9 @@ export const EnchantmentCard: React.FC<EnchantmentCardProps> = ({
             </div>
 
             {/* Stats Footer */}
-            <div className="px-5 py-3 bg-black/60 border-t border-white/10 flex justify-between items-center text-xs font-mono text-gray-400 relative z-10">
+            <div className="px-5 py-3 bg-black/60 border-t border-white/10 flex justify-between items-center text-xs font-mono text-gray-400 relative z-10 backdrop-blur-sm">
                <div className="flex gap-4">
-                   <span className={`flex items-center gap-1.5 transition-colors ${data.isLiked ? 'text-pink-500' : 'group-hover/name:text-white'}`}>
+                   <span className={`flex items-center gap-1.5 transition-colors ${data.isLiked ? 'text-pink-500 drop-shadow-[0_0_5px_rgba(236,72,153,0.5)]' : 'group-hover/name:text-white'}`}>
                        <Heart size={12} className={data.isLiked ? "fill-pink-500" : ""} /> {data.stats.likes}
                    </span>
                    <span className="flex items-center gap-1.5 group-hover/name:text-white transition-colors">
