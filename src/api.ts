@@ -1,6 +1,4 @@
-
 import { Enchantment, User, API_CONFIG } from './types';
-import { calculatePowerLevel } from './utils';
 
 // MOCK DATA for Fallback (Offline Mode)
 const MOCK_DATA: Enchantment[] = [
@@ -27,27 +25,28 @@ const MOCK_DATA: Enchantment[] = [
     }
 ];
 
+export const calculatePowerLevel = (e: Enchantment): number => {
+    let score = 0;
+    if (e.rarity === 'Legendary') score += 400;
+    else if (e.rarity === 'Epic') score += 250;
+    else if (e.rarity === 'Rare') score += 150;
+    else score += 50;
+    return score;
+};
+
 class ApiService {
     private isOnline: boolean = false;
-    private baseUrl: string;
+    private baseUrl: string = API_CONFIG.BASE_URL;
 
     constructor() {
-        // Automatically determine URL. If on localhost, try Docker port 4000. 
-        // If on GitHub Pages, use the configured public API URL (or fallback to local).
-        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-            this.baseUrl = 'http://localhost:4000/api';
-        } else {
-            this.baseUrl = API_CONFIG.BASE_URL;
-        }
         this.checkStatus();
     }
 
     async checkStatus() {
         try {
             const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), 2000);
+            setTimeout(() => controller.abort(), 2000);
             const res = await fetch(`${this.baseUrl}/status`, { signal: controller.signal });
-            clearTimeout(id);
             this.isOnline = res.ok;
             return this.isOnline;
         } catch (e) {
@@ -56,37 +55,22 @@ class ApiService {
         }
     }
 
-    getIsOnline() {
-        return this.isOnline;
-    }
-
     async getEnchantments(): Promise<Enchantment[]> {
         if (this.isOnline) {
             try {
                 const res = await fetch(`${this.baseUrl}/enchantments`);
                 if (res.ok) return await res.json();
-            } catch (e) {
-                console.warn("API Call Failed, falling back to local");
-                this.isOnline = false;
-            }
+            } catch (e) { this.isOnline = false; }
         }
-        
-        // Fallback: LocalStorage
         const saved = localStorage.getItem('mystic_enchantments');
-        let data = saved ? JSON.parse(saved) : MOCK_DATA;
-        
-        return data.map((item: any) => ({
-            ...item,
-            itemScore: item.itemScore || calculatePowerLevel(item)
-        }));
+        const data = saved ? JSON.parse(saved) : MOCK_DATA;
+        return data.map((item: any) => ({ ...item, itemScore: item.itemScore || calculatePowerLevel(item) }));
     }
 
     async saveEnchantment(enchantment: Enchantment): Promise<void> {
-        // Cache locally first for UI responsiveness
         const current = await this.getEnchantments();
         const updated = [enchantment, ...current];
         localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-
         if (this.isOnline) {
             try {
                 await fetch(`${this.baseUrl}/enchantments`, {
@@ -94,7 +78,7 @@ class ApiService {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(enchantment)
                 });
-            } catch (e) { console.error("Sync to server failed"); }
+            } catch (e) {}
         }
     }
 
@@ -102,67 +86,34 @@ class ApiService {
         const current = await this.getEnchantments();
         const updated = current.filter(e => e.id !== id);
         localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-
-        if (this.isOnline) {
-             try {
-                await fetch(`${this.baseUrl}/enchantments/${id}`, { method: 'DELETE' });
-            } catch (e) { console.error("Sync to server failed"); }
-        }
     }
 
     async toggleLike(id: string): Promise<void> {
          const current = await this.getEnchantments();
          const updated = current.map(e => {
-             if (e.id === id) {
-                 const isLiked = !e.isLiked;
-                 return { ...e, isLiked, stats: { ...e.stats, likes: isLiked ? e.stats.likes + 1 : e.stats.likes - 1 } };
-             }
+             if (e.id === id) return { ...e, isLiked: !e.isLiked, stats: { ...e.stats, likes: e.isLiked ? e.stats.likes - 1 : e.stats.likes + 1 } };
              return e;
          });
          localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-
-         if (this.isOnline) {
-             try {
-                 await fetch(`${this.baseUrl}/enchantments/${id}/like`, { method: 'POST' });
-             } catch (e) { console.error("Sync to server failed"); }
-         }
     }
 
     async incrementStat(id: string, stat: 'views' | 'downloads'): Promise<void> {
         const current = await this.getEnchantments();
-        const updated = current.map(e => 
-            e.id === id ? { ...e, stats: { ...e.stats, [stat]: e.stats[stat] + 1 } } : e
-        );
+        const updated = current.map(e => e.id === id ? { ...e, stats: { ...e.stats, [stat]: e.stats[stat] + 1 } } : e);
         localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
-
-        if (this.isOnline) {
-            try {
-                 await fetch(`${this.baseUrl}/enchantments/${id}/${stat}`, { method: 'POST' });
-             } catch (e) { console.error("Sync to server failed"); }
-        }
     }
-
-    async verifyDiscord(token: string): Promise<User | null> {
+    
+    async exchangeDiscordCode(code: string): Promise<User | null> {
         if (this.isOnline) {
             try {
-                const res = await fetch(`${this.baseUrl}/auth/verify`, {
+                const res = await fetch(`${this.baseUrl}/auth/exchange`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ code })
                 });
                 if (res.ok) return await res.json();
-            } catch(e) {
-                console.warn("Server verification failed, trying client-side fallback");
-            }
+            } catch (e) {}
         }
-        return null;
-    }
-
-    async exchangeDiscordCode(code: string): Promise<User | null> {
-        // Placeholder implementation
-        // Since backend support for code exchange is missing in the provided code,
-        // we return null to trigger the Guest fallback in App.tsx
-        // In a full implementation, this would POST the code to the backend.
         return null;
     }
 }

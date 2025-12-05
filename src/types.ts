@@ -1,19 +1,14 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
-
 export type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
 export type Slot = 'Weapon' | 'Chest' | 'Head' | 'Legs' | 'Hands' | 'Ring' | 'Trinket';
 
-// === DISCORD CONFIGURATION ===
 export const DISCORD_CLIENT_ID = '1444798601032372431';
 export const REQUIRED_GUILD_ID = '1408571660994482298'; 
 export const DISCORD_INVITE_LINK = 'https://discord.gg/MGZUeqhB4V';
 
-// === BACKEND API CONFIGURATION ===
 export const API_CONFIG = {
-    BASE_URL: 'http://localhost:4000/api', // Or your production URL
+    BASE_URL: typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:4000/api' 
+        : 'https://the-accused-api.onrender.com/api', // Update with real production API
     TIMEOUT: 5000
 };
 
@@ -49,35 +44,6 @@ export interface Enchantment {
   isLiked?: boolean;
 }
 
-export interface ComicFace {
-    type: 'cover' | 'back_cover' | 'story';
-    pageIndex?: number;
-    imageUrl?: string;
-    isDecisionPage?: boolean;
-    choices: string[];
-    resolvedChoice?: string;
-    isLoading?: boolean;
-}
-
-export interface Persona {
-    base64: string;
-}
-
-export const TOTAL_PAGES = 10;
-export const INITIAL_PAGES = 10;
-export const GATE_PAGE = 2;
-
-// Discord SDK Types
-export interface DiscordSDK {
-    ready: () => Promise<void>;
-    commands: {
-        authenticate: (params: { client_id: string }) => Promise<{ code: string }>;
-        authorize: (params: { client_id: string; response_type: string; state: string; prompt: string; scope: string[] }) => Promise<{ code: string }>;
-        getInstanceConnectedParticipants: () => Promise<any>;
-    };
-    guildId: string | null;
-}
-
 export const RARITY_COLORS = {
   Common: 'text-gray-400 border-gray-600 shadow-gray-500/20',
   Rare: 'text-blue-400 border-blue-500 shadow-blue-500/20',
@@ -91,6 +57,3 @@ export const RARITY_BG = {
   Epic: 'bg-gradient-to-br from-purple-900/30 to-purple-900/10',
   Legendary: 'bg-gradient-to-br from-orange-900/30 to-orange-900/10',
 };
-
-export const GENRES = ['Fantasy', 'Sci-Fi', 'Cyberpunk', 'Noir', 'Mystery', 'Custom'];
-export const LANGUAGES = [{ code: 'en', name: 'English' }];
