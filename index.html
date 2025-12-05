@@ -1,30 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mystic Enchant Creator</title>
-    <!-- Vite handles the base path automatically during build -->
-    <script type="module" src="./index.tsx"></script>
-  <script type="importmap">
+    
+    <!-- Discord Embedded App SDK & React Deps -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.294.0",
+    "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
+    "@google/genai": "https://esm.sh/@google/genai@0.1.1",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+    "@discord/embedded-app-sdk": "https://esm.sh/@discord/embedded-app-sdk@1.2.0",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "@discord/embedded-app-sdk": "https://aistudiocdn.com/@discord/embedded-app-sdk@^2.4.0",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "node-fetch": "https://aistudiocdn.com/node-fetch@^3.3.2",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "node-fetch": "https://aistudiocdn.com/node-fetch@^3.3.2"
   }
 }
 </script>
+
+    <style>
+        /* Loader Styles */
+        #loader { position: fixed; inset: 0; background: #050505; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; color: #a855f7; font-family: 'Orbitron', sans-serif; transition: opacity 0.5s; }
+        .spinner { width: 50px; height: 50px; border: 3px solid rgba(168,85,247,0.3); border-radius: 50%; border-top-color: #a855f7; animation: spin 1s ease-in-out infinite; margin-bottom: 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
-  <body class="bg-[#050505] text-white overflow-x-hidden">
+<body class="bg-[#050505] text-white overflow-hidden">
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="status">INITIALIZING DISCORD ACTIVITY...</div>
+    </div>
     <div id="root"></div>
-  </body>
+
+    <script type="text/babel" data-type="module">
+        import React from 'react';
+        import { createRoot } from 'react-dom/client';
+
+        const FILES = [
+            'types', 'utils', 'api', 'DiscordLogin', 'EnchantmentCard', 
+            'CreateView', 'GalleryView', 'CommunityView', 'App'
+        ];
+
+        async function loadApp() {
+            const status = document.getElementById('status');
+            try {
+                // 1. Fetch all source files
+                const modules = {};
+                for (const file of FILES) {
+                    status.innerText = `LOADING MODULE: ${file}...`;
+                    const res = await fetch(`./${file}.tsx?v=${Date.now()}`);
+                    if (!res.ok) throw new Error(`Failed to load ${file}`);
+                    let code = await res.text();
+                    
+                    // Rewrite imports for browser compatibility
+                    code = code.replace(/import\s+(.*?)\s+from\s+['"]\.\/(.*?)['"]/g, (match, imports, path) => {
+                        return `import ${imports} from '${path}'`; // Remove ./ for Blob mapping
+                    });
+                    
+                    // Handle CSS imports
+                    code = code.replace(/import\s+['"]\.\/index\.css['"];/g, '');
+
+                    // Compile TSX -> JS
+                    const compiled = Babel.transform(code, {
+                        presets: ['react', 'typescript'],
+                        filename: `${file}.tsx`
+                    }).code;
+
+                    modules[file] = URL.createObjectURL(new Blob([compiled], { type: 'application/javascript' }));
+                }
+
+                // 2. Inject Dynamic Import Map
+                const map = { imports: {} };
+                FILES.forEach(f => map.imports[f] = modules[f]);
+                
+                const mapScript = document.createElement('script');
+                mapScript.type = 'importmap';
+                mapScript.textContent = JSON.stringify(map);
+                document.head.appendChild(mapScript);
+
+                // 3. Load Styles
+                const cssRes = await fetch('./index.css');
+                const css = await cssRes.text();
+                const style = document.createElement('style');
+                style.textContent = css;
+                document.head.appendChild(style);
+
+                // 4. Launch App
+                status.innerText = 'LAUNCHING...';
+                
+                // Dynamic import of the main App module
+                // We use a slight delay to let the import map register
+                await new Promise(r => setTimeout(r, 100));
+                
+                const { default: App } = await import('App');
+                const container = document.getElementById('root');
+                const root = createRoot(container);
+                root.render(<App />);
+
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').remove(), 500);
+
+            } catch (err) {
+                console.error(err);
+                status.innerHTML = `<span style="color:red">FATAL ERROR:<br>${err.message}</span>`;
+            }
+        }
+
+        loadApp();
+    </script>
+</body>
 </html>
