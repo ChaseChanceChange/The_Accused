@@ -55,6 +55,7 @@ export interface DiscordSDK {
     ready: () => Promise<void>;
     commands: {
         authenticate: (params: { client_id: string }) => Promise<{ code: string }>;
+        authorize: (params: { client_id: string; response_type: string; state: string; prompt: string; scope: string[] }) => Promise<{ code: string }>;
         getInstanceConnectedParticipants: () => Promise<any>;
     };
     guildId: string | null;

@@ -35,11 +35,18 @@ const App: React.FC = () => {
             console.log("Discord SDK Ready");
 
             // 2. Authenticate User inside Activity
-            // Note: In a real prod environment, you send 'code' to your backend to get an access_token.
-            // Without a backend, we can't get the Real User Profile securely.
-            // We will attempt the handshake, and if it fails (no backend), we fall back to "Guest Activity" mode.
             try {
-                const { code } = await discordSdk.commands.authenticate({ client_id: DISCORD_CLIENT_ID });
+                // Use authorize to get the code
+                const { code } = await discordSdk.commands.authorize({
+                    client_id: DISCORD_CLIENT_ID,
+                    response_type: "code",
+                    state: "",
+                    prompt: "none",
+                    scope: [
+                        "identify",
+                        "guilds",
+                    ],
+                });
                 
                 // Try to exchange code via our Docker Backend (if running)
                 const verifiedUser = await api.exchangeDiscordCode(code);

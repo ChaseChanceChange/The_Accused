@@ -1,3 +1,4 @@
+
 import { Enchantment, User, API_CONFIG } from './types';
 import { calculatePowerLevel } from './utils';
 
@@ -31,8 +32,6 @@ class ApiService {
     private baseUrl: string;
 
     constructor() {
-        // Automatically determine URL. If on localhost, try Docker port 4000. 
-        // If on GitHub Pages, use the configured public API URL (or fallback to local).
         if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
             this.baseUrl = 'http://localhost:4000/api';
         } else {
@@ -81,7 +80,7 @@ class ApiService {
     }
 
     async saveEnchantment(enchantment: Enchantment): Promise<void> {
-        // Cache locally first for UI responsiveness
+        // Cache locally first
         const current = await this.getEnchantments();
         const updated = [enchantment, ...current];
         localStorage.setItem('mystic_enchantments', JSON.stringify(updated));
@@ -153,6 +152,22 @@ class ApiService {
             } catch(e) {
                 console.warn("Server verification failed, trying client-side fallback");
             }
+        }
+        return null;
+    }
+
+    async exchangeDiscordCode(code: string): Promise<User | null> {
+        if (this.isOnline) {
+             try {
+                 const res = await fetch(`${this.baseUrl}/auth/exchange`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ code })
+                 });
+                 if (res.ok) return await res.json();
+             } catch(e) {
+                 console.warn("Code exchange failed");
+             }
         }
         return null;
     }

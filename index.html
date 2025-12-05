@@ -46,8 +46,15 @@
         import { createRoot } from 'react-dom/client';
 
         const FILES = [
-            'types', 'utils', 'api', 'DiscordLogin', 'EnchantmentCard', 
-            'CreateView', 'GalleryView', 'CommunityView', 'App'
+            { name: 'types', ext: 'ts' },
+            { name: 'utils', ext: 'ts' },
+            { name: 'api', ext: 'ts' },
+            { name: 'DiscordLogin', ext: 'tsx' },
+            { name: 'EnchantmentCard', ext: 'tsx' },
+            { name: 'CreateView', ext: 'tsx' },
+            { name: 'GalleryView', ext: 'tsx' },
+            { name: 'CommunityView', ext: 'tsx' },
+            { name: 'App', ext: 'tsx' }
         ];
 
         async function loadApp() {
@@ -55,15 +62,18 @@
             try {
                 // 1. Fetch all source files
                 const modules = {};
-                for (const file of FILES) {
-                    status.innerText = `LOADING MODULE: ${file}...`;
-                    const res = await fetch(`./${file}.tsx?v=${Date.now()}`);
-                    if (!res.ok) throw new Error(`Failed to load ${file}`);
+                for (const fileObj of FILES) {
+                    const filename = `${fileObj.name}.${fileObj.ext}`;
+                    status.innerText = `LOADING MODULE: ${filename}...`;
+                    
+                    const res = await fetch(`./${filename}?v=${Date.now()}`);
+                    if (!res.ok) throw new Error(`Failed to load ${filename}`);
                     let code = await res.text();
                     
                     // Rewrite imports for browser compatibility
+                    // This regex converts './SomeFile' to 'SomeFile' so it matches the import map keys
                     code = code.replace(/import\s+(.*?)\s+from\s+['"]\.\/(.*?)['"]/g, (match, imports, path) => {
-                        return `import ${imports} from '${path}'`; // Remove ./ for Blob mapping
+                        return `import ${imports} from '${path}'`; 
                     });
                     
                     // Handle CSS imports
@@ -72,15 +82,15 @@
                     // Compile TSX -> JS
                     const compiled = Babel.transform(code, {
                         presets: ['react', 'typescript'],
-                        filename: `${file}.tsx`
+                        filename: filename
                     }).code;
 
-                    modules[file] = URL.createObjectURL(new Blob([compiled], { type: 'application/javascript' }));
+                    modules[fileObj.name] = URL.createObjectURL(new Blob([compiled], { type: 'application/javascript' }));
                 }
 
                 // 2. Inject Dynamic Import Map
                 const map = { imports: {} };
-                FILES.forEach(f => map.imports[f] = modules[f]);
+                FILES.forEach(f => map.imports[f.name] = modules[f.name]);
                 
                 const mapScript = document.createElement('script');
                 mapScript.type = 'importmap';

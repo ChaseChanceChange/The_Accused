@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -50,7 +49,6 @@ export interface Enchantment {
   isLiked?: boolean;
 }
 
-// Missing Types added
 export interface ComicFace {
     type: 'cover' | 'back_cover' | 'story';
     pageIndex?: number;
@@ -69,11 +67,12 @@ export const TOTAL_PAGES = 10;
 export const INITIAL_PAGES = 10;
 export const GATE_PAGE = 2;
 
-// Discord SDK Types (Manual definition, kept for reference if needed by other files, though App uses package)
+// Discord SDK Types
 export interface DiscordSDK {
     ready: () => Promise<void>;
     commands: {
         authenticate: (params: { client_id: string }) => Promise<{ code: string }>;
+        authorize: (params: { client_id: string; response_type: string; state: string; prompt: string; scope: string[] }) => Promise<{ code: string }>;
         getInstanceConnectedParticipants: () => Promise<any>;
     };
     guildId: string | null;
