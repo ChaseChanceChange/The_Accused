@@ -221,12 +221,13 @@ const App: React.FC = () => {
   if (isInitializing || isVerifying) {
       return (
           <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-white relative overflow-hidden">
-               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.05]"></div>
-              <Loader2 size={64} className="text-purple-500 animate-spin mb-6" />
-              <h2 className="font-header text-3xl tracking-widest animate-pulse text-purple-200">
+               {/* Magic Loading Background */}
+               <div className="absolute inset-0 bg-mana-stream opacity-20"></div>
+              <Loader2 size={64} className="text-purple-500 animate-spin mb-6 relative z-10" />
+              <h2 className="font-header text-3xl tracking-widest animate-pulse text-purple-200 relative z-10">
                   {isVerifying ? 'Verifying Credentials' : 'Accessing Archive'}
               </h2>
-              <p className="font-mono text-gray-500 mt-2">
+              <p className="font-mono text-gray-500 mt-2 relative z-10">
                   {isVerifying ? 'Handshaking with Discord Gateway...' : 'Loading local profile...'}
               </p>
           </div>
@@ -236,10 +237,9 @@ const App: React.FC = () => {
   // 2. Not Logged In - Strict Gate (Skip if in Discord Activity)
   if (!user && !isInDiscordActivity) {
       return (
-          <div className="min-h-screen bg-[#050505] relative flex flex-col">
-              {/* Animated Background */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-[#050505] to-[#050505]"></div>
-              <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+          <div className="min-h-screen bg-[#050505] relative flex flex-col overflow-hidden">
+              {/* Animated Mana Background */}
+              <div className="absolute inset-0 bg-mana-stream opacity-30"></div>
               
               {/* Brand Header for Landing */}
               <div className="absolute top-8 left-0 right-0 flex justify-center z-10">
@@ -255,7 +255,9 @@ const App: React.FC = () => {
               </div>
 
               {/* Login Component (Forced) */}
-              <DiscordLogin onLogin={() => {}} onClose={() => {}} isForced={true} />
+              <div className="relative z-20 flex-1 flex items-center justify-center">
+                <DiscordLogin onLogin={() => {}} onClose={() => {}} isForced={true} />
+              </div>
               
                {notification && (
                   <div className="fixed bottom-8 right-8 z-[120] animate-in slide-in-from-right fade-in duration-300">
@@ -274,11 +276,11 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-[#050505] text-white selection:bg-purple-500/30 selection:text-white">
       
       {/* Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/5 shadow-2xl">
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/5 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('browse')}>
-                <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-600 rounded flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)] group-hover:scale-110 transition-transform duration-300">
+                <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-600 rounded flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)] group-hover:scale-110 transition-transform duration-300 group-hover:rotate-6">
                     <Sparkles className="text-white fill-white/20" size={20} />
                 </div>
                 <div className="hidden sm:block">
@@ -322,7 +324,7 @@ const App: React.FC = () => {
                     href={DONATION_LINK} 
                     target="_blank" 
                     rel="noreferrer"
-                    className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-bold uppercase tracking-wider rounded shadow hover:shadow-[0_0_15px_rgba(234,179,8,0.6)] transform hover:-translate-y-0.5 transition-all"
+                    className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-bold uppercase tracking-wider rounded shadow hover:shadow-[0_0_15px_rgba(234,179,8,0.6)] transform hover:-translate-y-0.5 transition-all donate-btn"
                 >
                     <Heart size={14} className="fill-black" /> Donate
                 </a>
@@ -358,7 +360,7 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 relative">
-         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] pointer-events-none fixed"></div>
+         <div className="absolute inset-0 bg-mana-stream opacity-[0.2] pointer-events-none fixed"></div>
          
          {view === 'create' ? (
              <CreateView 
