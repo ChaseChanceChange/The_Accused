@@ -8,7 +8,8 @@ const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
   
-  // Detect if we are running in the Discord Activity context or regular web
+  // Detect if we are running in the Discord Activity context
+  // Logic: If filename is activity.html OR we are in an iframe with Discord params
   const isActivity = window.location.pathname.includes('activity.html') || 
                      window.location.search.includes('frame_id');
 

@@ -5,13 +5,13 @@ const path = require('path');
 const isWatch = process.argv.includes('--watch');
 
 async function build() {
-  // 1. Clean dist
+  console.log('🧹 Cleaning dist...');
   await fs.emptyDir('dist');
 
-  // 2. Copy static public files (HTML, etc)
+  console.log('📂 Copying public files...');
   await fs.copy('public', 'dist');
 
-  // 3. Build Options
+  console.log('⚡ Building with esbuild...');
   const ctx = await esbuild.context({
     entryPoints: ['src/main.tsx', 'src/index.css'],
     bundle: true,
@@ -35,8 +35,11 @@ async function build() {
   } else {
     await ctx.rebuild();
     await ctx.dispose();
-    console.log('✨ Build complete!');
+    console.log('✨ Build complete! Output in /dist');
   }
 }
 
-build().catch(() => process.exit(1));
+build().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

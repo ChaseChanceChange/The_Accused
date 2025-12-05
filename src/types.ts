@@ -8,7 +8,7 @@ export const DISCORD_INVITE_LINK = 'https://discord.gg/MGZUeqhB4V';
 export const API_CONFIG = {
     BASE_URL: typeof window !== 'undefined' && window.location.hostname === 'localhost' 
         ? 'http://localhost:4000/api' 
-        : 'https://the-accused-api.onrender.com/api', // Update with real production API
+        : 'https://the-accused-api.onrender.com/api', 
     TIMEOUT: 5000
 };
 

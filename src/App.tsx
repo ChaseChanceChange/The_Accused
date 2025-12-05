@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import { Enchantment, User, DISCORD_CLIENT_ID } from './types';
@@ -31,13 +32,43 @@ const App: React.FC<AppProps> = ({ isActivityContext }) => {
             if (isActivityContext) {
                 await initDiscordActivity();
             } else {
-                const saved = localStorage.getItem('mystic_user');
-                if (saved) setUser(JSON.parse(saved));
-                setIsInitializing(false);
+                // Check for OAuth Callback Code
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                
+                if (code) {
+                    await handleAuthCallback(code);
+                } else {
+                    await checkWebAuth();
+                }
             }
         };
         init();
     }, [isActivityContext]);
+
+    const handleAuthCallback = async (code: string) => {
+        try {
+            const verifiedUser = await api.exchangeDiscordCode(code);
+            if (verifiedUser) {
+                setUser(verifiedUser);
+                localStorage.setItem('mystic_user', JSON.stringify(verifiedUser));
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        } catch (e) {
+            console.error("Auth Callback Failed", e);
+        } finally {
+            setIsInitializing(false);
+        }
+    };
+
+    const checkWebAuth = async () => {
+        const saved = localStorage.getItem('mystic_user');
+        if (saved) {
+            setUser(JSON.parse(saved));
+        }
+        setIsInitializing(false);
+    };
 
     const initDiscordActivity = async () => {
         try {
@@ -69,6 +100,14 @@ const App: React.FC<AppProps> = ({ isActivityContext }) => {
             }
         } catch (e) {
             console.error("Activity Init Error", e);
+            // Even if auth fails, let them in as guest in activity
+             setUser({
+                id: 'activity-guest',
+                username: 'Discord Adventurer',
+                discriminator: '0000',
+                avatar: 'https://cdn.discordapp.com/embed/avatars/1.png',
+                isMember: false
+            });
         } finally {
             setIsInitializing(false);
         }
