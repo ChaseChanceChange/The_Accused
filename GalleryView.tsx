@@ -189,10 +189,14 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ items, onLike, onDelet
                         </div>
                     </div>
 
-                    {/* Grid */}
+                    {/* Grid with Staggered Animation */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 px-4">
-                        {filteredItems.map(item => (
-                            <div key={item.id} className="relative">
+                        {filteredItems.map((item, idx) => (
+                            <div 
+                                key={item.id} 
+                                className="relative animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-backwards"
+                                style={{ animationDelay: `${idx * 100}ms` }}
+                            >
                                 <EnchantmentCard 
                                     data={item} 
                                     isInteractive 
